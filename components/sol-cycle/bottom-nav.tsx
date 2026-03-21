@@ -3,13 +3,13 @@
 import { cn } from '@/lib/utils'
 import { 
   Home, 
-  Calendar, 
+  TrendingUp, 
   Plus, 
   Apple, 
   Sparkles 
 } from 'lucide-react'
 
-export type NavTab = 'today' | 'calendar' | 'log' | 'nourish' | 'insights'
+export type NavTab = 'today' | 'reports' | 'log' | 'nourish' | 'insights'
 
 interface BottomNavProps {
   activeTab: NavTab
@@ -18,7 +18,7 @@ interface BottomNavProps {
 
 const tabs: { id: NavTab; label: string; icon: typeof Home }[] = [
   { id: 'today', label: 'Today', icon: Home },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'reports', label: 'Reports', icon: TrendingUp },
   { id: 'log', label: 'Log', icon: Plus },
   { id: 'nourish', label: 'Nourish', icon: Apple },
   { id: 'insights', label: 'Insights', icon: Sparkles },

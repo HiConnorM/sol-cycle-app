@@ -1,10 +1,17 @@
 'use client'
 
-import { useMemo } from 'react'
-import type { CalendarSystem, CyclePhase } from '@/lib/types'
+import { useMemo, useState, useEffect } from 'react'
+import type { CalendarSystem, CyclePhase, MoonPhaseData } from '@/lib/types'
 import { gregorianToIFC, IFC_MONTHS } from '@/lib/calendar/international-fixed-calendar'
 import { getMoonPhase } from '@/lib/calendar/moon-phases'
 import { getCyclePhase, getPhaseInfo } from '@/lib/calendar/cycle-calculations'
+
+// Default moon data for SSR
+const DEFAULT_MOON_DATA: MoonPhaseData = {
+  phase: 'waxing-crescent',
+  illumination: 25,
+  name: 'Waxing Crescent',
+}
 
 // Wheel segment colors - soft pastel spectrum
 const WHEEL_COLORS = {
@@ -58,7 +65,15 @@ export function RadialWheel({
   onDateSelect,
   onToggleCalendar,
 }: RadialWheelProps) {
-  const moonPhase = useMemo(() => getMoonPhase(date), [date])
+  const [mounted, setMounted] = useState(false)
+  const [moonPhase, setMoonPhase] = useState<MoonPhaseData>(DEFAULT_MOON_DATA)
+  
+  // Only calculate moon phase on client to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+    setMoonPhase(getMoonPhase(date))
+  }, [date])
+  
   const ifcDate = useMemo(() => gregorianToIFC(date), [date])
   
   const monthCount = calendarSystem === 'gregorian' ? 12 : 13

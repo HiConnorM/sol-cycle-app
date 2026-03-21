@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { getMoonPhase } from '@/lib/calendar/moon-phases'
-import type { MoonPhase } from '@/lib/types'
+import type { MoonPhase, MoonPhaseData } from '@/lib/types'
 
 interface MoonPhaseDisplayProps {
   date?: Date
@@ -17,13 +17,29 @@ const SIZES = {
   lg: 64,
 }
 
+// Default moon data for SSR (stable value)
+const DEFAULT_MOON_DATA: MoonPhaseData = {
+  phase: 'waxing-crescent',
+  illumination: 25,
+  name: 'Waxing Crescent',
+}
+
 export function MoonPhaseDisplay({ 
-  date = new Date(), 
+  date, 
   size = 'md',
   showLabel = true,
   className 
 }: MoonPhaseDisplayProps) {
-  const moonData = useMemo(() => getMoonPhase(date), [date])
+  const [moonData, setMoonData] = useState<MoonPhaseData>(DEFAULT_MOON_DATA)
+  const [mounted, setMounted] = useState(false)
+  
+  // Only calculate moon phase on client to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+    const targetDate = date || new Date()
+    setMoonData(getMoonPhase(targetDate))
+  }, [date])
+  
   const pixelSize = SIZES[size]
   
   // Calculate the clip path for moon illumination
@@ -35,28 +51,24 @@ export function MoonPhaseDisplay({
     const illum = illumination / 100
     
     // Calculate the curve for the terminator line
-    // This creates the crescent/gibbous effect
     const curveOffset = r * (1 - Math.abs(illum * 2 - 1))
     
     if (phase === 'new') {
-      return '' // All dark
+      return ''
     }
     
     if (phase === 'full') {
       return `M ${center} ${center - r} A ${r} ${r} 0 1 1 ${center} ${center + r} A ${r} ${r} 0 1 1 ${center} ${center - r}`
     }
     
-    // Waxing phases - right side illuminated
     if (phase.includes('waxing')) {
       if (illumination <= 50) {
-        // Crescent - illuminated area is less than half
         return `
           M ${center} ${center - r}
           A ${r} ${r} 0 0 1 ${center} ${center + r}
           Q ${center - curveOffset} ${center} ${center} ${center - r}
         `
       } else {
-        // Gibbous - illuminated area is more than half
         return `
           M ${center} ${center - r}
           A ${r} ${r} 0 0 1 ${center} ${center + r}
@@ -65,17 +77,14 @@ export function MoonPhaseDisplay({
       }
     }
     
-    // Waning phases - left side illuminated
     if (phase.includes('waning')) {
       if (illumination <= 50) {
-        // Crescent
         return `
           M ${center} ${center - r}
           A ${r} ${r} 0 0 0 ${center} ${center + r}
           Q ${center + curveOffset} ${center} ${center} ${center - r}
         `
       } else {
-        // Gibbous
         return `
           M ${center} ${center - r}
           A ${r} ${r} 0 0 0 ${center} ${center + r}
@@ -84,7 +93,6 @@ export function MoonPhaseDisplay({
       }
     }
     
-    // Quarter phases
     if (phase === 'first-quarter') {
       return `
         M ${center} ${center - r}
@@ -103,6 +111,9 @@ export function MoonPhaseDisplay({
     
     return ''
   }
+  
+  // Use stable values for SSR, real values after mount
+  const displayData = mounted ? moonData : DEFAULT_MOON_DATA
   
   return (
     <div className={`flex flex-col items-center gap-1 ${className || ''}`}>
@@ -123,9 +134,9 @@ export function MoonPhaseDisplay({
         />
         
         {/* Illuminated portion */}
-        {moonData.phase !== 'new' && (
+        {displayData.phase !== 'new' && (
           <path
-            d={getIlluminationPath(moonData.phase, moonData.illumination)}
+            d={getIlluminationPath(displayData.phase, displayData.illumination)}
             fill="#FFFEF5"
             stroke="none"
           />
@@ -148,7 +159,7 @@ export function MoonPhaseDisplay({
       
       {showLabel && (
         <span className="text-xs text-muted-foreground text-center">
-          {moonData.name}
+          {displayData.name}
         </span>
       )}
     </div>

@@ -1,6 +1,22 @@
 import type { IFCDate, GregorianDate } from '@/lib/types'
 
 // IFC Month names
+export const IFC_MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'Sol',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const
+
 const IFC_MONTH_NAMES = [
   'January',
   'February',

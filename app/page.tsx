@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { TodayScreen } from '@/components/sol-cycle/today-screen'
-import { CalendarView } from '@/components/sol-cycle/calendar-view'
+import { ReportsScreen } from '@/components/sol-cycle/reports-screen'
 import { LogSheet } from '@/components/sol-cycle/log-sheet'
 import { NourishScreen } from '@/components/sol-cycle/nourish-screen'
 import { InsightsScreen } from '@/components/sol-cycle/insights-screen'
@@ -25,7 +25,7 @@ export default function SolCycleApp() {
     }
   }
   
-  // Handle date selection from calendar
+  // Handle date selection from wheel/calendar
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date)
     setIsLogOpen(true)
@@ -37,8 +37,8 @@ export default function SolCycleApp() {
   return (
     <div className="min-h-screen bg-background">
       {/* Main content based on active tab */}
-      {activeTab === 'today' && <TodayScreen />}
-      {activeTab === 'calendar' && <CalendarView onDateSelect={handleDateSelect} />}
+      {activeTab === 'today' && <TodayScreen onDateSelect={handleDateSelect} />}
+      {activeTab === 'reports' && <ReportsScreen />}
       {activeTab === 'nourish' && <NourishScreen />}
       {activeTab === 'insights' && <InsightsScreen />}
       

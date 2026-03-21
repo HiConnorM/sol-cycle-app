@@ -1,37 +1,60 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { CalendarSystem, IFCDate } from '@/lib/types'
+import type { CalendarSystem, IFCDate, MoonPhaseData } from '@/lib/types'
 import { getUserPreferences, saveUserPreferences } from '@/lib/storage/cycle-storage'
 import { gregorianToIFC, formatIFCDate, formatGregorianDate } from '@/lib/calendar/international-fixed-calendar'
 import { getMoonPhase } from '@/lib/calendar/moon-phases'
 
+// Stable default date for SSR (Jan 1, 2025 - avoids hydration mismatch)
+const STABLE_DEFAULT_DATE = new Date(2025, 0, 1)
+
+// Default moon data for SSR
+const DEFAULT_MOON_DATA: MoonPhaseData = {
+  phase: 'waxing-crescent',
+  illumination: 25,
+  name: 'Waxing Crescent',
+}
+
 export function useCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(STABLE_DEFAULT_DATE)
   const [calendarSystem, setCalendarSystem] = useState<CalendarSystem>('gregorian')
   const [isLoading, setIsLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const [moonPhase, setMoonPhase] = useState<MoonPhaseData>(DEFAULT_MOON_DATA)
   
-  // Load preferences on mount
+  // Initialize on mount with actual current date
   useEffect(() => {
+    setMounted(true)
+    const now = new Date()
+    setCurrentDate(now)
+    setMoonPhase(getMoonPhase(now))
+    
     const prefs = getUserPreferences()
     setCalendarSystem(prefs.calendarSystem)
     setIsLoading(false)
   }, [])
   
-  // Update current date every minute
+  // Update moon phase when date changes (client-side only)
   useEffect(() => {
+    if (mounted) {
+      setMoonPhase(getMoonPhase(currentDate))
+    }
+  }, [currentDate, mounted])
+  
+  // Update current date every minute (client-side only)
+  useEffect(() => {
+    if (!mounted) return
+    
     const interval = setInterval(() => {
       setCurrentDate(new Date())
     }, 60000)
     
     return () => clearInterval(interval)
-  }, [])
+  }, [mounted])
   
   // IFC date conversion
   const ifcDate = useMemo(() => gregorianToIFC(currentDate), [currentDate])
-  
-  // Moon phase
-  const moonPhase = useMemo(() => getMoonPhase(currentDate), [currentDate])
   
   // Toggle calendar system
   const toggleCalendarSystem = useCallback(() => {

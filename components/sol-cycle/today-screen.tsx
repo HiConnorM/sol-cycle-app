@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Sun, Moon, Sparkles, Heart, Utensils, Dumbbell } from 'lucide-react'
-import { RadialWheel } from './radial-wheel'
+import { LivingWheel } from './living-wheel'
 import { InsightCard } from './insight-card'
 import { TaskCard } from './task-card'
 import { MoonPhaseDisplay } from './moon-phase-display'
@@ -11,10 +11,20 @@ import { useTasks } from '@/lib/hooks/use-tasks'
 import { useCalendar } from '@/lib/hooks/use-calendar'
 import { getPhaseRecommendations } from '@/lib/content/phase-recommendations'
 
-export function TodayScreen() {
-  const { cycleDay, currentPhase, phaseInfo, daysUntil, inPMDDWindow, settings } = useCycle()
+interface TodayScreenProps {
+  onDateSelect?: (date: Date) => void
+}
+
+export function TodayScreen({ onDateSelect }: TodayScreenProps) {
+  const { cycleDay, currentPhase, phaseInfo, daysUntil, inPMDDWindow, settings, logs } = useCycle()
   const { tasks, toggleTask, addTask, tasksByFrequency } = useTasks()
   const { currentDate, calendarSystem, toggleCalendarSystem, moonPhase } = useCalendar()
+  const [mounted, setMounted] = useState(false)
+  
+  // Track mount state for hydration-safe rendering
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   const recommendations = useMemo(() => {
     return getPhaseRecommendations(currentPhase, inPMDDWindow)
@@ -84,33 +94,37 @@ export function TodayScreen() {
       
       {/* Main content */}
       <main className="px-5 py-6 max-w-md mx-auto space-y-6">
-        {/* Radial Wheel */}
+        {/* Living Wheel - Clickable calendar with expandable center and segments */}
         <section className="py-4">
-          <RadialWheel
+          <LivingWheel
             date={currentDate}
             calendarSystem={calendarSystem}
             cycleDay={cycleDay}
             cycleLength={settings.averageCycleLength}
             periodLength={settings.averagePeriodLength}
+            cycleLogs={logs}
+            onDateSelect={onDateSelect}
             onToggleCalendar={toggleCalendarSystem}
           />
         </section>
         
-        {/* Moon Phase Card */}
-        <InsightCard
-          title="Moon Phase"
-          label={moonPhase.name}
-          icon={<Moon className="w-4 h-4" />}
-          variant="subtle"
-        >
-          <p>
-            {moonPhase.illumination}% illuminated. 
-            {moonPhase.phase === 'new' && ' A time for new beginnings and setting intentions.'}
-            {moonPhase.phase === 'full' && ' Peak energy - a powerful time for manifestation.'}
-            {moonPhase.phase === 'waxing-crescent' && ' Building energy - take action on your goals.'}
-            {moonPhase.phase === 'waning-crescent' && ' Time to release and let go.'}
-          </p>
-        </InsightCard>
+        {/* Moon Phase Card - only show real data after mount to avoid hydration mismatch */}
+        {mounted && (
+          <InsightCard
+            title="Moon Phase"
+            label={moonPhase.name}
+            icon={<Moon className="w-4 h-4" />}
+            variant="subtle"
+          >
+            <p>
+              {moonPhase.illumination}% illuminated. 
+              {moonPhase.phase === 'new' && ' A time for new beginnings and setting intentions.'}
+              {moonPhase.phase === 'full' && ' Peak energy - a powerful time for manifestation.'}
+              {moonPhase.phase === 'waxing-crescent' && ' Building energy - take action on your goals.'}
+              {moonPhase.phase === 'waning-crescent' && ' Time to release and let go.'}
+            </p>
+          </InsightCard>
+        )}
         
         {/* Phase Insight */}
         {recommendations && (

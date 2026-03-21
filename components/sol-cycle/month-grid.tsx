@@ -14,6 +14,7 @@ interface MonthGridProps {
   periodLength?: number
   cycleLogs?: CycleLog[]
   onDateSelect?: (date: Date) => void
+  compact?: boolean
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -26,6 +27,7 @@ export function MonthGrid({
   periodLength = 5,
   cycleLogs = [],
   onDateSelect,
+  compact = false,
 }: MonthGridProps) {
   const ifcDate = useMemo(() => gregorianToIFC(date), [date])
   
@@ -124,18 +126,20 @@ export function MonthGrid({
   
   return (
     <div className="w-full max-w-sm mx-auto">
-      {/* Month header */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-foreground">
-          {monthName}
-        </h3>
-        <span className="text-sm text-muted-foreground">
-          {currentYear}
-        </span>
-      </div>
+      {/* Month header - hide in compact mode */}
+      {!compact && (
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-foreground">
+            {monthName}
+          </h3>
+          <span className="text-sm text-muted-foreground">
+            {currentYear}
+          </span>
+        </div>
+      )}
       
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className={cn("grid grid-cols-7 gap-1", compact ? "mb-1" : "mb-2")}>
         {WEEKDAYS.map((day) => (
           <div
             key={day}
@@ -197,7 +201,8 @@ export function MonthGrid({
         })}
       </div>
       
-      {/* Phase legend */}
+      {/* Phase legend - hide in compact mode */}
+      {!compact && (
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--phase-menstrual)' }} />
@@ -216,6 +221,7 @@ export function MonthGrid({
           <span className="text-muted-foreground">Luteal</span>
         </div>
       </div>
+      )}
     </div>
   )
 }

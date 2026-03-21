@@ -211,6 +211,11 @@
   }
 }
 
+/* Safe area for iOS devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Custom scrollbar for Sol Cycle aesthetic */
 @layer utilities {
   .scrollbar-hide {
