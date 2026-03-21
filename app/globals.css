@@ -1,0 +1,243 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Sol Cycle - Nude Nature Base */
+  --background: #F7F5F2;
+  --background-soft: #EFECE7;
+  --foreground: #2B2B2B;
+  
+  /* Card and Surface Colors */
+  --card: #FFFFFF;
+  --card-foreground: #2B2B2B;
+  --popover: #FFFFFF;
+  --popover-foreground: #2B2B2B;
+  
+  /* Text Colors */
+  --text-primary: #2B2B2B;
+  --text-secondary: #6B6B6B;
+  --text-muted: #A0A0A0;
+  
+  /* Primary Accent - Muted Tan */
+  --primary: #C6B89E;
+  --primary-foreground: #2B2B2B;
+  
+  /* Secondary Colors */
+  --secondary: #EFECE7;
+  --secondary-foreground: #2B2B2B;
+  
+  /* Muted Colors */
+  --muted: #EFECE7;
+  --muted-foreground: #6B6B6B;
+  
+  /* Accent */
+  --accent: #BFD8C2;
+  --accent-foreground: #2B2B2B;
+  
+  /* Destructive */
+  --destructive: #D8A7A7;
+  --destructive-foreground: #2B2B2B;
+  
+  /* Border and Input */
+  --border: #E8E4DF;
+  --input: #EFECE7;
+  --ring: #C6B89E;
+  
+  /* Sol Cycle - Pastel Wheel Colors */
+  --wheel-dusty-rose: #D8A7A7;
+  --wheel-soft-peach: #E6B8A2;
+  --wheel-warm-sand: #E8D2B0;
+  --wheel-muted-gold: #EAD9A0;
+  --wheel-sage-green: #BFD8C2;
+  --wheel-soft-olive: #AFC3A4;
+  --wheel-misty-teal: #B7D3CF;
+  --wheel-pale-blue: #C9D6E3;
+  --wheel-lavender-gray: #C7C3D9;
+  --wheel-soft-plum: #BFA8C9;
+  --wheel-blush-pink: #E4BFC3;
+  
+  /* Cycle Phase Colors */
+  --phase-menstrual: #C7C3D9;
+  --phase-menstrual-light: rgba(199, 195, 217, 0.15);
+  --phase-follicular: #BFD8C2;
+  --phase-follicular-light: rgba(191, 216, 194, 0.15);
+  --phase-ovulatory: #EAD9A0;
+  --phase-ovulatory-light: rgba(234, 217, 160, 0.15);
+  --phase-luteal: #D8A7A7;
+  --phase-luteal-light: rgba(216, 167, 167, 0.15);
+  
+  /* Natural Accent Colors */
+  --soft-sage: #BFD8C2;
+  --dusty-pink: #D8A7A7;
+  --clay-tan: #D9B4A0;
+  --warm-sand: #E8D2B0;
+  
+  /* Radius */
+  --radius: 0.75rem;
+  
+  /* Sidebar (for nav if needed) */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #2B2B2B;
+  --sidebar-primary: #C6B89E;
+  --sidebar-primary-foreground: #2B2B2B;
+  --sidebar-accent: #EFECE7;
+  --sidebar-accent-foreground: #2B2B2B;
+  --sidebar-border: #E8E4DF;
+  --sidebar-ring: #C6B89E;
+  
+  /* Chart Colors using wheel palette */
+  --chart-1: #D8A7A7;
+  --chart-2: #BFD8C2;
+  --chart-3: #EAD9A0;
+  --chart-4: #C9D6E3;
+  --chart-5: #BFA8C9;
+}
+
+.dark {
+  --background: #1A1918;
+  --background-soft: #252423;
+  --foreground: #F5F3F0;
+  
+  --card: #252423;
+  --card-foreground: #F5F3F0;
+  --popover: #252423;
+  --popover-foreground: #F5F3F0;
+  
+  --text-primary: #F5F3F0;
+  --text-secondary: #A8A6A3;
+  --text-muted: #6B6967;
+  
+  --primary: #D9CAB3;
+  --primary-foreground: #1A1918;
+  
+  --secondary: #2F2E2D;
+  --secondary-foreground: #F5F3F0;
+  
+  --muted: #2F2E2D;
+  --muted-foreground: #A8A6A3;
+  
+  --accent: #3D4A3F;
+  --accent-foreground: #F5F3F0;
+  
+  --destructive: #8B5A5A;
+  --destructive-foreground: #F5F3F0;
+  
+  --border: #3A3837;
+  --input: #2F2E2D;
+  --ring: #D9CAB3;
+  
+  /* Darker wheel colors for dark mode */
+  --wheel-dusty-rose: #B08080;
+  --wheel-soft-peach: #C49A7E;
+  --wheel-warm-sand: #C4B08A;
+  --wheel-muted-gold: #C4B87A;
+  --wheel-sage-green: #8FB093;
+  --wheel-soft-olive: #8A9E7E;
+  --wheel-misty-teal: #8AADA6;
+  --wheel-pale-blue: #9AAEC0;
+  --wheel-lavender-gray: #9A96B0;
+  --wheel-soft-plum: #9A829F;
+  --wheel-blush-pink: #C09A9E;
+  
+  --phase-menstrual: #9A96B0;
+  --phase-menstrual-light: rgba(154, 150, 176, 0.2);
+  --phase-follicular: #8FB093;
+  --phase-follicular-light: rgba(143, 176, 147, 0.2);
+  --phase-ovulatory: #C4B87A;
+  --phase-ovulatory-light: rgba(196, 184, 122, 0.2);
+  --phase-luteal: #B08080;
+  --phase-luteal-light: rgba(176, 128, 128, 0.2);
+  
+  --sidebar: #1A1918;
+  --sidebar-foreground: #F5F3F0;
+  --sidebar-primary: #D9CAB3;
+  --sidebar-primary-foreground: #1A1918;
+  --sidebar-accent: #2F2E2D;
+  --sidebar-accent-foreground: #F5F3F0;
+  --sidebar-border: #3A3837;
+  --sidebar-ring: #D9CAB3;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar for Sol Cycle aesthetic */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
+
+/* Smooth transitions for theme changes */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Mobile-first touch optimizations */
+@media (hover: none) {
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
