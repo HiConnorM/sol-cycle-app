@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { Sun, Moon, Sparkles, Heart, Utensils, Dumbbell } from 'lucide-react'
+import { Sun, Moon, Sparkles, Heart, Utensils, Dumbbell, Menu } from 'lucide-react'
 import { LivingWheel } from './living-wheel'
 import { InsightCard } from './insight-card'
 import { TaskCard } from './task-card'
@@ -13,9 +13,10 @@ import { getPhaseRecommendations } from '@/lib/content/phase-recommendations'
 
 interface TodayScreenProps {
   onDateSelect?: (date: Date) => void
+  onMenuOpen?: () => void
 }
 
-export function TodayScreen({ onDateSelect }: TodayScreenProps) {
+export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
   const { cycleDay, currentPhase, phaseInfo, daysUntil, inPMDDWindow, settings, logs } = useCycle()
   const { tasks, toggleTask, addTask, tasksByFrequency } = useTasks()
   const { currentDate, calendarSystem, toggleCalendarSystem, moonPhase } = useCalendar()
@@ -33,12 +34,14 @@ export function TodayScreen({ onDateSelect }: TodayScreenProps) {
   const dailyTasks = tasksByFrequency('daily')
   const weeklyTasks = tasksByFrequency('weekly')
   
-  // Greeting based on time of day
-  const greeting = useMemo(() => {
+  // Greeting based on time of day - only calculate on client
+  const [greeting, setGreeting] = useState('Welcome')
+  
+  useEffect(() => {
     const hour = new Date().getHours()
-    if (hour < 12) return 'Good morning'
-    if (hour < 17) return 'Good afternoon'
-    return 'Good evening'
+    if (hour < 12) setGreeting('Good morning')
+    else if (hour < 17) setGreeting('Good afternoon')
+    else setGreeting('Good evening')
   }, [])
   
   // Status text
@@ -63,7 +66,6 @@ export function TodayScreen({ onDateSelect }: TodayScreenProps) {
           </div>
           
           <div className="flex items-center gap-3">
-            <MoonPhaseDisplay date={currentDate} size="sm" showLabel={false} />
             {cycleDay && (
               <div 
                 className="px-3 py-1.5 rounded-full text-xs font-medium"
@@ -75,6 +77,13 @@ export function TodayScreen({ onDateSelect }: TodayScreenProps) {
                 Day {cycleDay}
               </div>
             )}
+            <button
+              onClick={onMenuOpen}
+              className="p-2 rounded-full bg-muted/50 hover:bg-muted transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="w-5 h-5 text-foreground" />
+            </button>
           </div>
         </div>
         

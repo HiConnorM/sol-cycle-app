@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu } from 'lucide-react'
 import { TodayScreen } from '@/components/sol-cycle/today-screen'
 import { ReportsScreen } from '@/components/sol-cycle/reports-screen'
 import { LogSheet } from '@/components/sol-cycle/log-sheet'
@@ -39,15 +38,6 @@ export default function SolCycleApp() {
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Menu Button - Fixed in top left */}
-      <button
-        onClick={() => setIsMenuOpen(true)}
-        className="fixed top-4 left-4 z-40 p-2.5 rounded-full bg-card border border-border shadow-sm hover:bg-muted transition-colors"
-        aria-label="Open menu"
-      >
-        <Menu className="w-5 h-5 text-foreground" />
-      </button>
-      
       {/* Side Menu */}
       <SideMenu 
         isOpen={isMenuOpen} 
@@ -55,7 +45,7 @@ export default function SolCycleApp() {
       />
       
       {/* Main content based on active tab */}
-      {activeTab === 'today' && <TodayScreen onDateSelect={handleDateSelect} />}
+      {activeTab === 'today' && <TodayScreen onDateSelect={handleDateSelect} onMenuOpen={() => setIsMenuOpen(true)} />}
       {activeTab === 'reports' && <ReportsScreen />}
       {activeTab === 'nourish' && <NourishScreen />}
       {activeTab === 'insights' && <InsightsScreen />}
