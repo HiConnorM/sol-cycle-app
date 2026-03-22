@@ -350,20 +350,31 @@ export function LivingWheel({
                 stroke="#3a3a4e"
                 strokeWidth="0.5"
               />
-              {/* Illuminated portion */}
+              {/* Illuminated portion - use stable values on SSR, dynamic on client */}
               <clipPath id="moonClipLiving">
                 <circle r="22" />
               </clipPath>
-              <ellipse
-                cx={moonPhase.phase.includes('waning') 
-                  ? 22 - (moonPhase.illumination / 100) * 44 
-                  : -22 + (moonPhase.illumination / 100) * 44}
-                cy="0"
-                rx={Math.abs(22 - (moonPhase.illumination / 100) * 44)}
-                ry="22"
-                fill="#f5f5dc"
-                clipPath="url(#moonClipLiving)"
-              />
+              {mounted ? (
+                <ellipse
+                  cx={moonPhase.phase.includes('waning') 
+                    ? 22 - (moonPhase.illumination / 100) * 44 
+                    : -22 + (moonPhase.illumination / 100) * 44}
+                  cy="0"
+                  rx={Math.abs(22 - (moonPhase.illumination / 100) * 44)}
+                  ry="22"
+                  fill="#f5f5dc"
+                  clipPath="url(#moonClipLiving)"
+                />
+              ) : (
+                <ellipse
+                  cx={-11}
+                  cy="0"
+                  rx={11}
+                  ry="22"
+                  fill="#f5f5dc"
+                  clipPath="url(#moonClipLiving)"
+                />
+              )}
               {/* Moon texture overlay */}
               <circle
                 r="22"

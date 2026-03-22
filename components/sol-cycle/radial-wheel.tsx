@@ -319,7 +319,7 @@ export function RadialWheel({
           strokeWidth="2"
         />
         
-        {/* Moon phase visualization in center */}
+        {/* Moon phase visualization in center - only render dynamic moon after mount */}
         <g transform={`translate(${center}, ${center - 18})`}>
           <circle
             r="14"
@@ -327,22 +327,33 @@ export function RadialWheel({
             stroke="#D9D5D0"
             strokeWidth="0.5"
           />
-          {/* Moon illumination */}
+          {/* Moon illumination - use static default on server, dynamic on client */}
           <clipPath id="moonClip">
             <circle r="14" />
           </clipPath>
-          <rect
-            x={moonPhase.phase.includes('waning') ? -14 + (moonPhase.illumination / 100) * 28 : -14}
-            y="-14"
-            width={28 * (moonPhase.illumination / 100)}
-            height="28"
-            fill="#FFFEF8"
-            clipPath="url(#moonClip)"
-            style={{
-              transform: moonPhase.phase.includes('waning') ? 'scaleX(-1)' : 'none',
-              transformOrigin: 'center',
-            }}
-          />
+          {mounted ? (
+            <rect
+              x={moonPhase.phase.includes('waning') ? -14 + (moonPhase.illumination / 100) * 28 : -14}
+              y="-14"
+              width={28 * (moonPhase.illumination / 100)}
+              height="28"
+              fill="#FFFEF8"
+              clipPath="url(#moonClip)"
+              style={{
+                transform: moonPhase.phase.includes('waning') ? 'scaleX(-1)' : 'none',
+                transformOrigin: 'center',
+              }}
+            />
+          ) : (
+            <rect
+              x={-14}
+              y="-14"
+              width={7}
+              height="28"
+              fill="#FFFEF8"
+              clipPath="url(#moonClip)"
+            />
+          )}
         </g>
         
         {/* Date display in center */}

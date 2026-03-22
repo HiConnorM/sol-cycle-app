@@ -42,7 +42,19 @@ export function MoonPhaseDisplay({
   
   const pixelSize = SIZES[size]
   
-  // Calculate the clip path for moon illumination
+  // Use stable default values for SSR to avoid hydration mismatch
+  // The actual moon calculation only happens on the client
+  const displayData = mounted ? moonData : DEFAULT_MOON_DATA
+  
+  // Pre-calculate static path for default moon data (25% illumination, waxing-crescent)
+  const getStaticDefaultPath = (): string => {
+    const r = pixelSize / 2 - 2
+    const c = pixelSize / 2
+    const curveOffset = r * 0.5 // 25% illumination = 0.5 curve offset
+    return `M ${c} ${c - r} A ${r} ${r} 0 0 1 ${c} ${c + r} Q ${c - curveOffset} ${c} ${c} ${c - r}`
+  }
+  
+  // Calculate the clip path for moon illumination (only used client-side)
   const getIlluminationPath = (phase: MoonPhase, illumination: number): string => {
     const r = pixelSize / 2 - 2
     const center = pixelSize / 2
@@ -112,8 +124,10 @@ export function MoonPhaseDisplay({
     return ''
   }
   
-  // Use stable values for SSR, real values after mount
-  const displayData = mounted ? moonData : DEFAULT_MOON_DATA
+  // Use static path on server, dynamic on client
+  const illuminationPath = mounted 
+    ? getIlluminationPath(displayData.phase, displayData.illumination)
+    : getStaticDefaultPath()
   
   return (
     <div className={`flex flex-col items-center gap-1 ${className || ''}`}>
@@ -134,9 +148,9 @@ export function MoonPhaseDisplay({
         />
         
         {/* Illuminated portion */}
-        {displayData.phase !== 'new' && (
+        {displayData.phase !== 'new' && illuminationPath && (
           <path
-            d={getIlluminationPath(displayData.phase, displayData.illumination)}
+            d={illuminationPath}
             fill="#FFFEF5"
             stroke="none"
           />
