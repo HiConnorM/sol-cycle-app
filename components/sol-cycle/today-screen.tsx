@@ -5,7 +5,6 @@ import { Sun, Moon, Sparkles, Heart, Utensils, Dumbbell, Menu } from 'lucide-rea
 import { LivingWheel } from './living-wheel'
 import { InsightCard } from './insight-card'
 import { TaskCard } from './task-card'
-import { MoonPhaseDisplay } from './moon-phase-display'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useTasks } from '@/lib/hooks/use-tasks'
 import { useCalendar } from '@/lib/hooks/use-calendar'

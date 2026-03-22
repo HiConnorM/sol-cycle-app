@@ -91,19 +91,22 @@ export function LivingWheel({
     ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Sol', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   
-  const currentMonth = calendarSystem === 'gregorian' 
-    ? date.getMonth() 
-    : ifcDate.month - 1
+  // Use stable values for SSR (January 1st), then real values on client
+  const currentMonth = mounted
+    ? (calendarSystem === 'gregorian' ? date.getMonth() : ifcDate.month - 1)
+    : 0 // January for SSR
   
-  const currentDay = calendarSystem === 'gregorian'
-    ? date.getDate()
-    : ifcDate.day
+  const currentDay = mounted
+    ? (calendarSystem === 'gregorian' ? date.getDate() : ifcDate.day)
+    : 1 // 1st for SSR
   
-  const currentYear = date.getFullYear()
+  const currentYear = mounted ? date.getFullYear() : 2025 // Stable year for SSR
   
-  const displayMonth = calendarSystem === 'gregorian'
-    ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][date.getMonth()]
-    : ifcDate.monthName
+  const displayMonth = mounted
+    ? (calendarSystem === 'gregorian'
+      ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][date.getMonth()]
+      : ifcDate.monthName)
+    : 'January' // Stable for SSR
   
   const currentPhase: CyclePhase | null = cycleDay 
     ? getCyclePhase(cycleDay, cycleLength, periodLength)
@@ -325,6 +328,53 @@ export function LivingWheel({
               ))}
             </g>
           )}
+          
+          {/* Dial arrow pointing to current month */}
+          {(() => {
+            const anglePerSegment = 360 / monthCount
+            const arrowAngle = ((currentMonth + 0.5) * anglePerSegment - 90) * (Math.PI / 180)
+            const arrowInnerRadius = centerRadius + 4
+            const arrowOuterRadius = innerRadius - 16
+            const arrowTipX = center + arrowOuterRadius * Math.cos(arrowAngle)
+            const arrowTipY = center + arrowOuterRadius * Math.sin(arrowAngle)
+            const arrowBaseX = center + arrowInnerRadius * Math.cos(arrowAngle)
+            const arrowBaseY = center + arrowInnerRadius * Math.sin(arrowAngle)
+            
+            // Arrow head points
+            const headSize = 6
+            const perpAngle = arrowAngle + Math.PI / 2
+            const headLeft1X = arrowTipX - headSize * Math.cos(arrowAngle) + (headSize / 2) * Math.cos(perpAngle)
+            const headLeft1Y = arrowTipY - headSize * Math.sin(arrowAngle) + (headSize / 2) * Math.sin(perpAngle)
+            const headRight1X = arrowTipX - headSize * Math.cos(arrowAngle) - (headSize / 2) * Math.cos(perpAngle)
+            const headRight1Y = arrowTipY - headSize * Math.sin(arrowAngle) - (headSize / 2) * Math.sin(perpAngle)
+            
+            return (
+              <g className="pointer-events-none">
+                {/* Arrow shaft */}
+                <line
+                  x1={arrowBaseX}
+                  y1={arrowBaseY}
+                  x2={arrowTipX - headSize * 0.7 * Math.cos(arrowAngle)}
+                  y2={arrowTipY - headSize * 0.7 * Math.sin(arrowAngle)}
+                  stroke="#D8A7A7"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                {/* Arrow head */}
+                <polygon
+                  points={`${arrowTipX},${arrowTipY} ${headLeft1X},${headLeft1Y} ${headRight1X},${headRight1Y}`}
+                  fill="#D8A7A7"
+                />
+                {/* Arrow base circle */}
+                <circle
+                  cx={arrowBaseX}
+                  cy={arrowBaseY}
+                  r="3"
+                  fill="#D8A7A7"
+                />
+              </g>
+            )
+          })()}
           
           {/* Center circle - clickable moon */}
           <g 

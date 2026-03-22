@@ -9,7 +9,7 @@ import { getMoonPhase } from '@/lib/calendar/moon-phases'
 // Stable default date for SSR (Jan 1, 2025 - avoids hydration mismatch)
 const STABLE_DEFAULT_DATE = new Date(2025, 0, 1)
 
-// Default moon data for SSR
+// Default moon data for SSR (must match what STABLE_DEFAULT_DATE would produce)
 const DEFAULT_MOON_DATA: MoonPhaseData = {
   phase: 'waxing-crescent',
   illumination: 25,
@@ -17,22 +17,27 @@ const DEFAULT_MOON_DATA: MoonPhaseData = {
 }
 
 export function useCalendar() {
+  // Always start with stable defaults for SSR
   const [currentDate, setCurrentDate] = useState(STABLE_DEFAULT_DATE)
   const [calendarSystem, setCalendarSystem] = useState<CalendarSystem>('gregorian')
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [moonPhase, setMoonPhase] = useState<MoonPhaseData>(DEFAULT_MOON_DATA)
   
-  // Initialize on mount with actual current date
+  // Initialize on mount with actual current date - wrapped in requestAnimationFrame 
+  // to ensure it happens after hydration is complete
   useEffect(() => {
-    setMounted(true)
-    const now = new Date()
-    setCurrentDate(now)
-    setMoonPhase(getMoonPhase(now))
-    
-    const prefs = getUserPreferences()
-    setCalendarSystem(prefs.calendarSystem)
-    setIsLoading(false)
+    // Use requestAnimationFrame to ensure state updates happen after React hydration
+    requestAnimationFrame(() => {
+      setMounted(true)
+      const now = new Date()
+      setCurrentDate(now)
+      setMoonPhase(getMoonPhase(now))
+      
+      const prefs = getUserPreferences()
+      setCalendarSystem(prefs.calendarSystem)
+      setIsLoading(false)
+    })
   }, [])
   
   // Update moon phase when date changes (client-side only)
