@@ -14,3 +14,39 @@ next.user-config.*
 node_modules
 .next/
 .DS_Store
+
+# Claude local memory — never commit
+.claude/
+
+# Flutter
+sol_cycle/.dart_tool/
+sol_cycle/.flutter-plugins
+sol_cycle/.flutter-plugins-dependencies
+sol_cycle/build/
+sol_cycle/.pub-cache/
+sol_cycle/.pub/
+sol_cycle/*.iml
+sol_cycle/android/.gradle/
+sol_cycle/android/local.properties
+sol_cycle/android/key.properties
+sol_cycle/ios/Pods/
+sol_cycle/ios/Flutter/Flutter.framework/
+sol_cycle/ios/Flutter/Flutter.podspec
+sol_cycle/ios/.symlinks/
+sol_cycle/macos/Pods/
+sol_cycle/macos/.symlinks/
+
+# Next.js (sol-cycle-app web)
+sol-cycle-app/node_modules/
+sol-cycle-app/.next/
+sol-cycle-app/.env
+sol-cycle-app/.env.local
+sol-cycle-app/.env.*.local
+
+# macOS
+**/.DS_Store
+
+# General
+*.log
+sol-cycle-app
+SOL-data/.obsidian/plugins/copilot/data.json
