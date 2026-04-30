@@ -29,7 +29,7 @@ class SolDrawer extends ConsumerWidget {
                     height: 52,
                     decoration: BoxDecoration(
                       gradient: const RadialGradient(
-                        colors: [Color(0xFFEAD9A0), Color(0xFFC6A882)],
+                        colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)],
                       ),
                       shape: BoxShape.circle,
                     ),
@@ -125,7 +125,7 @@ class SolDrawer extends ConsumerWidget {
               _DrawerItem(
                 icon: Icons.delete_outline_rounded,
                 label: 'Delete All Data',
-                color: const Color(0xFFD8A7A7),
+                color: const Color(0xFFF0A28F),
                 onTap: () => _showDeleteConfirm(context, ref),
               ),
             ]),

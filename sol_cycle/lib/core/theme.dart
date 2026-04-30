@@ -3,55 +3,55 @@ import 'package:google_fonts/google_fonts.dart';
 
 class SolColors {
   // Base palette
-  static const Color background = Color(0xFFFAF7F2);
-  static const Color surface = Color(0xFFF5F0E8);
-  static const Color card = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFE8E4DF);
+  static const Color background = Color(0xFFFCFAF8);   // Soft Ivory White
+  static const Color surface = Color(0xFFF5F0F4);       // Petal Mist
+  static const Color card = Color(0xFFFFFFFF);           // Pure White
+  static const Color border = Color(0xFFE6DEE6);         // Cloud Mauve
 
   // Text
-  static const Color textPrimary = Color(0xFF2B2B2B);
-  static const Color textSecondary = Color(0xFF6B6B6B);
-  static const Color textMuted = Color(0xFFA0A0A0);
+  static const Color textPrimary = Color(0xFF3E3745);    // Deep Plum Slate
+  static const Color textSecondary = Color(0xFF7F7788);  // Muted Mauve Gray
+  static const Color textMuted = Color(0xFFADA7B3);      // Light Mauve
 
   // Accent
-  static const Color primary = Color(0xFFC6A882);
-  static const Color primaryLight = Color(0xFFF0E8D8);
-  static const Color primaryDark = Color(0xFF8B6E4E);
+  static const Color primary = Color(0xFFB6A3B6);        // Moon Mauve
+  static const Color primaryLight = Color(0xFFE8DEE8);   // Light Mauve
+  static const Color primaryDark = Color(0xFF7F7788);    // Muted Mauve Gray
 
-  // Phase colors
-  static const Color menstrual = Color(0xFFD8A7A7);
-  static const Color menstrualLight = Color(0xFFF2E0E0);
-  static const Color follicular = Color(0xFFAFC3A4);
-  static const Color follicularLight = Color(0xFFDDEDD8);
-  static const Color ovulatory = Color(0xFFEAD9A0);
-  static const Color ovulatoryLight = Color(0xFFF7F0D0);
-  static const Color luteal = Color(0xFFBFA8C9);
-  static const Color lutealLight = Color(0xFFE8DDEF);
+  // Phase colors — drawn from the new wheel palette
+  static const Color menstrual = Color(0xFFF0A28F);      // Coral (inner winter warmth)
+  static const Color menstrualLight = Color(0xFFFAE3DC); // Light Coral
+  static const Color follicular = Color(0xFFB7DFA3);     // Soft Green (inner spring)
+  static const Color follicularLight = Color(0xFFDEF2D4);// Light Green
+  static const Color ovulatory = Color(0xFFF2DEA0);      // Warm Yellow (inner summer)
+  static const Color ovulatoryLight = Color(0xFFFAF2D5); // Light Yellow
+  static const Color luteal = Color(0xFFB7A6D9);         // Lavender (inner autumn)
+  static const Color lutealLight = Color(0xFFE5DFF5);    // Light Lavender
 
-  // Wheel month colors (seasonal pastel spectrum)
+  // Wheel month colors — Sol Cycle brand spectrum
   static const List<Color> wheelColors = [
-    Color(0xFFC9D6E3), // January  - Pale Blue
-    Color(0xFFC7C3D9), // February - Lavender Gray
-    Color(0xFFBFA8C9), // March    - Soft Plum
-    Color(0xFFBFD8C2), // April    - Sage Green
-    Color(0xFFAFC3A4), // May      - Soft Olive
-    Color(0xFFEAD9A0), // June     - Muted Gold
-    Color(0xFFE8D2B0), // Sol      - Warm Sand (13th month)
-    Color(0xFFE6B8A2), // July     - Soft Peach
-    Color(0xFFD8A7A7), // August   - Dusty Rose
-    Color(0xFFE4BFC3), // September- Blush Pink
-    Color(0xFFB7D3CF), // October  - Misty Teal
-    Color(0xFFC9D6E3), // November - Pale Blue
-    Color(0xFFC7C3D9), // December - Lavender Gray
+    Color(0xFFB7A6D9), // January  - Lavender
+    Color(0xFFAEBCE8), // February - Periwinkle Blue
+    Color(0xFFA9D2EC), // March    - Sky Blue
+    Color(0xFFA8E0D4), // April    - Seafoam
+    Color(0xFFB7DFA3), // May      - Soft Green
+    Color(0xFFD5E59B), // June     - Yellow-Green
+    Color(0xFFF2DEA0), // Sol      - Warm Yellow (13th month)
+    Color(0xFFF6C59F), // July     - Peach
+    Color(0xFFF0A28F), // August   - Coral
+    Color(0xFFD98C78), // September- Terracotta
+    Color(0xFFC98A97), // October  - Mauve Pink
+    Color(0xFFB48FAF), // November - Soft Violet
+    Color(0xFF9D8BC2), // December - Medium Purple
   ];
 
   // Moon
-  static const Color moonDark = Color(0xFFE8E4DF);
-  static const Color moonLight = Color(0xFFFFFEF8);
+  static const Color moonDark = Color(0xFFE6DEE6);   // Cloud Mauve
+  static const Color moonLight = Color(0xFFFCFAF8);  // Soft Ivory White
 
   // Status
-  static const Color pmddWarning = Color(0xFFE8BBBB);
-  static const Color pmddWarningLight = Color(0xFFF5E0E0);
+  static const Color pmddWarning = Color(0xFFF0A28F);      // Coral
+  static const Color pmddWarningLight = Color(0xFFFAE3DC); // Light Coral
 }
 
 class SolTheme {
@@ -67,7 +67,7 @@ class SolTheme {
         surface: SolColors.surface,
         onSurface: SolColors.textPrimary,
         outline: SolColors.border,
-        error: Color(0xFFD8A7A7),
+        error: Color(0xFFF0A28F),
       ),
       textTheme: _buildTextTheme(),
       appBarTheme: const AppBarTheme(

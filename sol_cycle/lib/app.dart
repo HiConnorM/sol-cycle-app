@@ -195,7 +195,7 @@ class _SolSplash extends StatelessWidget {
           width: 72,
           height: 72,
           decoration: BoxDecoration(
-            gradient: const RadialGradient(colors: [Color(0xFFEAD9A0), Color(0xFFC6A882)]),
+            gradient: const RadialGradient(colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)]),
             shape: BoxShape.circle,
             boxShadow: [BoxShadow(color: SolColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 6))],
           ),

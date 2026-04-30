@@ -116,7 +116,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: cycle.inPmddWindow ? const Color(0xFF8B3A3A) : SolColors.textSecondary,
+                          color: cycle.inPmddWindow ? const Color(0xFF8B4050) : SolColors.textSecondary,
                         ),
                       ),
                     ),
@@ -233,7 +233,7 @@ class _SolLogo extends StatelessWidget {
       height: 32,
       decoration: BoxDecoration(
         gradient: const RadialGradient(
-          colors: [Color(0xFFEAD9A0), Color(0xFFC6A882)],
+          colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)],
           center: Alignment.center,
         ),
         shape: BoxShape.circle,
@@ -258,7 +258,7 @@ class _StartTrackingCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFF5EFE6), Color(0xFFEDE3D5)],
+            colors: [Color(0xFFF5F0F4), Color(0xFFEAE3EA)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

@@ -138,7 +138,7 @@ class _WelcomePage extends StatelessWidget {
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              gradient: const RadialGradient(colors: [Color(0xFFEAD9A0), Color(0xFFC6A882)]),
+              gradient: const RadialGradient(colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)]),
               shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: SolColors.primary.withOpacity(0.3), blurRadius: 30, offset: const Offset(0, 8))],
             ),

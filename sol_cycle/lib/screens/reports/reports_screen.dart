@@ -276,9 +276,9 @@ class _PmddSummarySection extends StatelessWidget {
         children: const [
           Row(
             children: [
-              Icon(Icons.psychology_outlined, size: 18, color: Color(0xFF8B3A3A)),
+              Icon(Icons.psychology_outlined, size: 18, color: Color(0xFF8B4050)),
               SizedBox(width: 8),
-              Text('PMDD Pattern Report', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF8B3A3A))),
+              Text('PMDD Pattern Report', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF8B4050))),
             ],
           ),
           SizedBox(height: 8),

@@ -84,7 +84,7 @@ class WheelPainter extends CustomPainter {
         midAngle + pi / 2,
         isActive ? 10.5 : 9.0,
         isActive ? FontWeight.w600 : FontWeight.w400,
-        isActive ? const Color(0xFF2B2B2B) : const Color(0xFF6B6B6B),
+        isActive ? const Color(0xFF3E3745) : const Color(0xFF7F7788),
       );
     }
   }
@@ -136,7 +136,7 @@ class WheelPainter extends CustomPainter {
       final isCurrent = day == cycleDay;
 
       final tickPaint = Paint()
-        ..color = isCurrent ? const Color(0xFF2B2B2B) : Color(dayPhaseInfo.color).withOpacity(0.7)
+        ..color = isCurrent ? const Color(0xFF3E3745) : Color(dayPhaseInfo.color).withOpacity(0.7)
         ..strokeWidth = isCurrent ? 2.5 : 1.2
         ..strokeCap = StrokeCap.round;
 
@@ -153,7 +153,7 @@ class WheelPainter extends CustomPainter {
     );
     canvas.drawCircle(dotPos, 5, Paint()..color = Color(phaseInfo.color));
     canvas.drawCircle(dotPos, 5, Paint()
-      ..color = const Color(0xFF2B2B2B)
+      ..color = const Color(0xFF3E3745)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5);
   }
@@ -203,19 +203,19 @@ class WheelPainter extends CustomPainter {
     final monthStyle = TextStyle(
       fontSize: circleRadius * 0.22,
       fontWeight: FontWeight.w500,
-      color: const Color(0xFF2B2B2B),
+      color: const Color(0xFF3E3745),
       letterSpacing: 0.3,
     );
     final dayStyle = TextStyle(
       fontSize: circleRadius * 0.38,
       fontWeight: FontWeight.w700,
-      color: const Color(0xFF2B2B2B),
+      color: const Color(0xFF3E3745),
       height: 1.1,
     );
     final yearStyle = TextStyle(
       fontSize: circleRadius * 0.18,
       fontWeight: FontWeight.w400,
-      color: const Color(0xFFA0A0A0),
+      color: const Color(0xFFADA7B3),
     );
 
     _drawText(canvas, displayMonth, Offset(center.dx, center.dy + circleRadius * 0.08), monthStyle);
@@ -226,7 +226,7 @@ class WheelPainter extends CustomPainter {
       final cycleDayStyle = TextStyle(
         fontSize: circleRadius * 0.17,
         fontWeight: FontWeight.w500,
-        color: const Color(0xFF8B8B8B),
+        color: const Color(0xFF7F7788),
         letterSpacing: 0.5,
       );
       _drawText(canvas, 'day $cycleDay', Offset(center.dx, center.dy + circleRadius * 0.8), cycleDayStyle);
