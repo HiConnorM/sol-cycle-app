@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../core/theme.dart';
 import '../models/cycle_settings.dart';
 import '../providers/cycle_provider.dart';
@@ -22,36 +23,33 @@ class SolDrawer extends ConsumerWidget {
             // Profile header
             Container(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: const RadialGradient(
-                        colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)],
+                  SvgPicture.asset('assets/images/logo_dark.svg', height: 28, fit: BoxFit.contain),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Image.asset('assets/images/wheel.png', width: 40, height: 40),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              settings.name.isEmpty ? 'Your Profile' : settings.name,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: SolColors.textPrimary),
+                            ),
+                            Text(
+                              cycle.cycleDay != null
+                                  ? 'Day ${cycle.cycleDay} · ${phaseInfoMap[cycle.currentPhase]?.name ?? ''}'
+                                  : 'Not tracking yet',
+                              style: const TextStyle(fontSize: 12, color: SolColors.textMuted),
+                            ),
+                          ],
+                        ),
                       ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(child: Text('☀', style: TextStyle(fontSize: 24))),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          settings.name.isEmpty ? 'Your Profile' : settings.name,
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: SolColors.textPrimary),
-                        ),
-                        Text(
-                          cycle.cycleDay != null
-                              ? 'Day ${cycle.cycleDay} · ${phaseInfoMap[cycle.currentPhase]?.name ?? ''}'
-                              : 'Not tracking yet',
-                          style: const TextStyle(fontSize: 12, color: SolColors.textMuted),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ],
               ),

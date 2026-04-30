@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme.dart';
 import '../../providers/cycle_provider.dart';
 import '../../providers/calendar_provider.dart';
@@ -71,17 +72,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             elevation: 0,
             expandedHeight: 0,
             toolbarHeight: 64,
-            title: Row(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const _SolLogo(),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Sol Cycle', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: SolColors.textPrimary)),
-                    Text(_greeting, style: const TextStyle(fontSize: 12, color: SolColors.textMuted)),
-                  ],
+                SvgPicture.asset(
+                  'assets/images/logo_dark.svg',
+                  height: 22,
+                  fit: BoxFit.contain,
                 ),
+                const SizedBox(height: 2),
+                Text(_greeting, style: const TextStyle(fontSize: 12, color: SolColors.textMuted)),
               ],
             ),
             actions: [
@@ -228,20 +229,11 @@ class _SolLogo extends StatelessWidget {
   const _SolLogo();
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Image.asset(
+      'assets/images/wheel.png',
       width: 32,
       height: 32,
-      decoration: BoxDecoration(
-        gradient: const RadialGradient(
-          colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)],
-          center: Alignment.center,
-        ),
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: SolColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: const Center(
-        child: Text('☀', style: TextStyle(fontSize: 16)),
-      ),
+      fit: BoxFit.contain,
     );
   }
 }

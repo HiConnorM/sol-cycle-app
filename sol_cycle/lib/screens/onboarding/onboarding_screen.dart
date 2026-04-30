@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme.dart';
 import '../../providers/cycle_provider.dart';
 import '../../services/storage_service.dart';
@@ -134,18 +135,9 @@ class _WelcomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: const RadialGradient(colors: [Color(0xFFD5C9D5), Color(0xFFB6A3B6)]),
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: SolColors.primary.withOpacity(0.3), blurRadius: 30, offset: const Offset(0, 8))],
-            ),
-            child: const Center(child: Text('☀', style: TextStyle(fontSize: 48))),
-          ),
-          const SizedBox(height: 40),
-          const Text('Sol Cycle', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: SolColors.textPrimary, letterSpacing: -1)),
+          Image.asset('assets/images/wheel.png', width: 120, height: 120),
+          const SizedBox(height: 32),
+          SvgPicture.asset('assets/images/logo_dark.svg', height: 36, fit: BoxFit.contain),
           const SizedBox(height: 12),
           const Text(
             'A private, intelligent cycle companion\nbuilt around your natural rhythm.',
