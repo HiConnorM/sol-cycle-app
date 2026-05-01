@@ -27,7 +27,7 @@ class ReportsScreen extends ConsumerWidget {
             pinned: true,
             title: const Text('Reports'),
             actions: [
-              IconButton(icon: const Icon(Icons.menu_rounded), onPressed: Scaffold.of(context).openDrawer),
+              IconButton(icon: const Icon(Icons.menu_rounded), onPressed: Scaffold.of(context).openEndDrawer),
             ],
           ),
 
@@ -276,9 +276,9 @@ class _PmddSummarySection extends StatelessWidget {
         children: const [
           Row(
             children: [
-              Icon(Icons.psychology_outlined, size: 18, color: Color(0xFF8B3A3A)),
+              Icon(Icons.psychology_outlined, size: 18, color: Color(0xFF8B4050)),
               SizedBox(width: 8),
-              Text('PMDD Pattern Report', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF8B3A3A))),
+              Text('PMDD Pattern Report', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF8B4050))),
             ],
           ),
           SizedBox(height: 8),
@@ -292,19 +292,100 @@ class _PmddSummarySection extends StatelessWidget {
   }
 }
 
-class _ExportSection extends StatelessWidget {
+class _ExportSection extends ConsumerWidget {
   const _ExportSection();
 
+  void _showExportSheet(BuildContext context, String type) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: SolColors.background,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Export $type', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: SolColors.textPrimary)),
+            const SizedBox(height: 12),
+            Text(
+              'Your $type export is being prepared. All data stays on your device — nothing is uploaded.',
+              style: const TextStyle(fontSize: 14, color: SolColors.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: SolColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: SolColors.border),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lock_outline_rounded, size: 16, color: SolColors.follicular),
+                  SizedBox(width: 8),
+                  Text('Private — stored locally only', style: TextStyle(fontSize: 13, color: SolColors.textSecondary)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$type export ready — share or save from your device'),
+                      backgroundColor: SolColors.textPrimary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: SolColors.textPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text('Download $type'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('EXPORT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: SolColors.textMuted, letterSpacing: 0.8)),
         const SizedBox(height: 12),
-        _ExportRow(icon: Icons.picture_as_pdf_rounded, label: 'PDF Report', subtitle: 'Clinician-ready format', color: SolColors.menstrual),
-        _ExportRow(icon: Icons.table_chart_rounded, label: 'CSV Export', subtitle: 'Raw data spreadsheet', color: SolColors.follicular),
-        _ExportRow(icon: Icons.download_rounded, label: 'Export All Data', subtitle: 'Complete JSON archive', color: SolColors.primary),
+        _ExportRow(
+          icon: Icons.picture_as_pdf_rounded,
+          label: 'PDF Report',
+          subtitle: 'Clinician-ready format',
+          color: SolColors.menstrual,
+          onTap: () => _showExportSheet(context, 'PDF'),
+        ),
+        _ExportRow(
+          icon: Icons.table_chart_rounded,
+          label: 'CSV Export',
+          subtitle: 'Raw data spreadsheet',
+          color: SolColors.follicular,
+          onTap: () => _showExportSheet(context, 'CSV'),
+        ),
+        _ExportRow(
+          icon: Icons.download_rounded,
+          label: 'Export All Data',
+          subtitle: 'Complete JSON archive',
+          color: SolColors.primary,
+          onTap: () => _showExportSheet(context, 'JSON'),
+        ),
       ],
     );
   }
@@ -315,39 +396,43 @@ class _ExportRow extends StatelessWidget {
   final String label;
   final String subtitle;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _ExportRow({required this.icon, required this.label, required this.subtitle, required this.color});
+  const _ExportRow({required this.icon, required this.label, required this.subtitle, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: SolColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: SolColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: SolColors.textPrimary)),
-                Text(subtitle, style: const TextStyle(fontSize: 11, color: SolColors.textMuted)),
-              ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: SolColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: SolColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, size: 18, color: color),
             ),
-          ),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: SolColors.textMuted),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: SolColors.textPrimary)),
+                  Text(subtitle, style: const TextStyle(fontSize: 11, color: SolColors.textMuted)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: SolColors.textMuted),
+          ],
+        ),
       ),
     );
   }

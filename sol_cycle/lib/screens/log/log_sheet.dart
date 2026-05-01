@@ -268,7 +268,7 @@ class _MindTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Track these separately for PMDD pattern detection', style: TextStyle(fontSize: 11, color: Color(0xFF8B3A3A))),
+              const Text('Track these separately for PMDD pattern detection', style: TextStyle(fontSize: 11, color: Color(0xFF8B4050))),
               const SizedBox(height: 8),
               _ChipGrid(
                 items: pmddSymptoms,
@@ -303,7 +303,7 @@ class _CareTab extends StatelessWidget {
         _ChipGrid(
           items: medications,
           selected: log.medications,
-          color: const Color(0xFFB7D3CF),
+          color: const Color(0xFFBDD7CB),
           onChanged: (v) => onChanged(log.copyWith(medications: v)),
         ),
         const SizedBox(height: 20),

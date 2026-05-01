@@ -49,7 +49,7 @@ class InsightsScreen extends ConsumerWidget {
             pinned: true,
             title: const Text('Insights'),
             actions: [
-              IconButton(icon: const Icon(Icons.menu_rounded), onPressed: Scaffold.of(context).openDrawer),
+              IconButton(icon: const Icon(Icons.menu_rounded), onPressed: Scaffold.of(context).openEndDrawer),
             ],
           ),
 

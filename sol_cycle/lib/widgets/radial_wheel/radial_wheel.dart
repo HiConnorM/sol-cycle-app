@@ -72,7 +72,7 @@ class _RadialWheelState extends ConsumerState<RadialWheel>
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF2B2B2B),
+                color: const Color(0xFF3E3745),
                 letterSpacing: 0.3,
               ),
             ),

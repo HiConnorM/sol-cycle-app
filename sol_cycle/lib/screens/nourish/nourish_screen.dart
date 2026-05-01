@@ -27,7 +27,7 @@ class NourishScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.menu_rounded),
-                onPressed: Scaffold.of(context).openDrawer,
+                onPressed: Scaffold.of(context).openEndDrawer,
               ),
             ],
           ),
@@ -48,8 +48,8 @@ class NourishScreen extends ConsumerWidget {
                   _NourishCard(
                     title: 'Foods to Emphasize',
                     subtitle: 'Based on your ${phaseInfo?.name ?? ''} phase',
-                    color: Color(phaseInfo?.color ?? 0xFFC6A882),
-                    lightColor: Color(phaseInfo?.colorLight ?? 0xFFF0E8D8),
+                    color: Color(phaseInfo?.color ?? 0xFFB6A3B6),
+                    lightColor: Color(phaseInfo?.colorLight ?? 0xFFE8DEE8),
                     items: recommendations.foods,
                     icon: Icons.restaurant_menu_rounded,
                   ),
@@ -352,12 +352,12 @@ class _HydrationCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFD6EDF5), Color(0xFFE8F4F8)],
+          colors: [Color(0xFFA8E0D4), Color(0xFFBDD7CB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFB0D8E8).withOpacity(0.5)),
+        border: Border.all(color: const Color(0xFFA8E0D4).withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

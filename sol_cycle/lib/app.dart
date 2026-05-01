@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'core/theme.dart';
 import 'providers/cycle_provider.dart';
 import 'screens/today/today_screen.dart';
@@ -88,7 +89,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const SolDrawer(),
+      endDrawer: const SolDrawer(),
       body: IndexedStack(index: _tab, children: _screens),
       floatingActionButton: FloatingActionButton(
         onPressed: _openLog,
@@ -191,18 +192,9 @@ class _SolSplash extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: const RadialGradient(colors: [Color(0xFFEAD9A0), Color(0xFFC6A882)]),
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: SolColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 6))],
-          ),
-          child: const Center(child: Text('☀', style: TextStyle(fontSize: 36))),
-        ),
-        const SizedBox(height: 16),
-        const Text('Sol Cycle', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: SolColors.textPrimary)),
+        Image.asset('assets/images/wheel.png', width: 88, height: 88),
+        const SizedBox(height: 20),
+        SvgPicture.asset('assets/images/logo_dark.svg', height: 28, fit: BoxFit.contain),
       ],
     );
   }

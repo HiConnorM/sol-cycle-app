@@ -46,6 +46,7 @@ class WheelPainter extends CustomPainter {
     if (cycleDay != null) {
       _drawCycleRing(canvas, center, innerRadius);
     }
+    _drawNeedle(canvas, center, centerRadius, innerRadius, anglePerSegment);
     _drawCenterCircle(canvas, center, centerRadius);
     _drawMoon(canvas, center, centerRadius);
     _drawCenterText(canvas, center, centerRadius);
@@ -84,7 +85,7 @@ class WheelPainter extends CustomPainter {
         midAngle + pi / 2,
         isActive ? 10.5 : 9.0,
         isActive ? FontWeight.w600 : FontWeight.w400,
-        isActive ? const Color(0xFF2B2B2B) : const Color(0xFF6B6B6B),
+        isActive ? const Color(0xFF3E3745) : const Color(0xFF7F7788),
       );
     }
   }
@@ -136,7 +137,7 @@ class WheelPainter extends CustomPainter {
       final isCurrent = day == cycleDay;
 
       final tickPaint = Paint()
-        ..color = isCurrent ? const Color(0xFF2B2B2B) : Color(dayPhaseInfo.color).withOpacity(0.7)
+        ..color = isCurrent ? const Color(0xFF3E3745) : Color(dayPhaseInfo.color).withOpacity(0.7)
         ..strokeWidth = isCurrent ? 2.5 : 1.2
         ..strokeCap = StrokeCap.round;
 
@@ -153,9 +154,34 @@ class WheelPainter extends CustomPainter {
     );
     canvas.drawCircle(dotPos, 5, Paint()..color = Color(phaseInfo.color));
     canvas.drawCircle(dotPos, 5, Paint()
-      ..color = const Color(0xFF2B2B2B)
+      ..color = const Color(0xFF3E3745)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5);
+  }
+
+  void _drawNeedle(Canvas canvas, Offset center, double centerR, double innerR, double anglePerSeg) {
+    final midAngle = (currentSegment * anglePerSeg) - pi / 2 + anglePerSeg / 2;
+    final tipR = innerR - 3;
+    final baseR = centerR + 6;
+    final halfWidth = 3.5;
+
+    final tip = Offset(center.dx + tipR * cos(midAngle), center.dy + tipR * sin(midAngle));
+    final baseCenter = Offset(center.dx + baseR * cos(midAngle), center.dy + baseR * sin(midAngle));
+    final perpAngle = midAngle + pi / 2;
+    final baseLeft = Offset(baseCenter.dx + halfWidth * cos(perpAngle), baseCenter.dy + halfWidth * sin(perpAngle));
+    final baseRight = Offset(baseCenter.dx - halfWidth * cos(perpAngle), baseCenter.dy - halfWidth * sin(perpAngle));
+
+    final needlePath = Path()
+      ..moveTo(tip.dx, tip.dy)
+      ..lineTo(baseLeft.dx, baseLeft.dy)
+      ..lineTo(baseRight.dx, baseRight.dy)
+      ..close();
+
+    canvas.drawPath(needlePath, Paint()..color = const Color(0xFF3E3745));
+    canvas.drawPath(needlePath, Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8);
   }
 
   void _drawCenterCircle(Canvas canvas, Offset center, double radius) {
@@ -203,19 +229,19 @@ class WheelPainter extends CustomPainter {
     final monthStyle = TextStyle(
       fontSize: circleRadius * 0.22,
       fontWeight: FontWeight.w500,
-      color: const Color(0xFF2B2B2B),
+      color: const Color(0xFF3E3745),
       letterSpacing: 0.3,
     );
     final dayStyle = TextStyle(
       fontSize: circleRadius * 0.38,
       fontWeight: FontWeight.w700,
-      color: const Color(0xFF2B2B2B),
+      color: const Color(0xFF3E3745),
       height: 1.1,
     );
     final yearStyle = TextStyle(
       fontSize: circleRadius * 0.18,
       fontWeight: FontWeight.w400,
-      color: const Color(0xFFA0A0A0),
+      color: const Color(0xFFADA7B3),
     );
 
     _drawText(canvas, displayMonth, Offset(center.dx, center.dy + circleRadius * 0.08), monthStyle);
@@ -226,7 +252,7 @@ class WheelPainter extends CustomPainter {
       final cycleDayStyle = TextStyle(
         fontSize: circleRadius * 0.17,
         fontWeight: FontWeight.w500,
-        color: const Color(0xFF8B8B8B),
+        color: const Color(0xFF7F7788),
         letterSpacing: 0.5,
       );
       _drawText(canvas, 'day $cycleDay', Offset(center.dx, center.dy + circleRadius * 0.8), cycleDayStyle);
