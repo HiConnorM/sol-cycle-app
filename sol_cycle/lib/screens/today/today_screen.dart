@@ -101,7 +101,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
               IconButton(
                 icon: const Icon(Icons.menu_rounded, color: SolColors.textPrimary),
-                onPressed: Scaffold.of(context).openDrawer,
+                onPressed: Scaffold.of(context).openEndDrawer,
               ),
             ],
             bottom: statusText.isNotEmpty

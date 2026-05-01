@@ -15,6 +15,21 @@ class MoonPhaseData {
 }
 
 class MoonService {
+  // Southern hemisphere sees moon phases visually mirrored
+  static MoonPhaseData getPhaseForHemisphere(DateTime date, {bool southern = false}) {
+    final data = getPhase(date);
+    if (!southern) return data;
+    final flipped = {
+      'waxing-crescent': ('waxing-crescent', 'Waxing Crescent', '🌘'),
+      'waxing-gibbous': ('waxing-gibbous', 'Waxing Gibbous', '🌖'),
+      'waning-gibbous': ('waning-gibbous', 'Waning Gibbous', '🌔'),
+      'waning-crescent': ('waning-crescent', 'Waning Crescent', '🌒'),
+    };
+    final entry = flipped[data.phase];
+    if (entry == null) return data;
+    return MoonPhaseData(phase: entry.$1, illumination: data.illumination, name: entry.$2, emoji: entry.$3);
+  }
+
   static MoonPhaseData getPhase(DateTime date) {
     final julianDate = _toJulianDate(date);
     final daysSinceNewMoon = (julianDate - 2451549.5) % 29.53058867;
@@ -55,17 +70,20 @@ class MoonService {
   }
 
   static double _toJulianDate(DateTime date) {
-    final a = ((14 - date.month) / 12).floor();
-    final y = date.year + 4800 - a;
-    final m = date.month + 12 * a - 3;
-    return date.day +
+    final utc = date.toUtc();
+    final a = ((14 - utc.month) / 12).floor();
+    final y = utc.year + 4800 - a;
+    final m = utc.month + 12 * a - 3;
+    final jdn = utc.day +
         ((153 * m + 2) / 5).floor() +
         365 * y +
         (y / 4).floor() -
         (y / 100).floor() +
         (y / 400).floor() -
-        32045 +
-        0.0;
+        32045;
+    // Julian dates start at noon; offset time fraction from midnight
+    final timeFraction = (utc.hour + utc.minute / 60.0 + utc.second / 3600.0) / 24.0 - 0.5;
+    return jdn.toDouble() + timeFraction;
   }
 
   static String getMoonInsight(String phase) {

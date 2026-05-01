@@ -89,7 +89,7 @@ class _MainShellState extends ConsumerState<_MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const SolDrawer(),
+      endDrawer: const SolDrawer(),
       body: IndexedStack(index: _tab, children: _screens),
       floatingActionButton: FloatingActionButton(
         onPressed: _openLog,

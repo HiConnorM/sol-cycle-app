@@ -46,6 +46,7 @@ class WheelPainter extends CustomPainter {
     if (cycleDay != null) {
       _drawCycleRing(canvas, center, innerRadius);
     }
+    _drawNeedle(canvas, center, centerRadius, innerRadius, anglePerSegment);
     _drawCenterCircle(canvas, center, centerRadius);
     _drawMoon(canvas, center, centerRadius);
     _drawCenterText(canvas, center, centerRadius);
@@ -156,6 +157,31 @@ class WheelPainter extends CustomPainter {
       ..color = const Color(0xFF3E3745)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5);
+  }
+
+  void _drawNeedle(Canvas canvas, Offset center, double centerR, double innerR, double anglePerSeg) {
+    final midAngle = (currentSegment * anglePerSeg) - pi / 2 + anglePerSeg / 2;
+    final tipR = innerR - 3;
+    final baseR = centerR + 6;
+    final halfWidth = 3.5;
+
+    final tip = Offset(center.dx + tipR * cos(midAngle), center.dy + tipR * sin(midAngle));
+    final baseCenter = Offset(center.dx + baseR * cos(midAngle), center.dy + baseR * sin(midAngle));
+    final perpAngle = midAngle + pi / 2;
+    final baseLeft = Offset(baseCenter.dx + halfWidth * cos(perpAngle), baseCenter.dy + halfWidth * sin(perpAngle));
+    final baseRight = Offset(baseCenter.dx - halfWidth * cos(perpAngle), baseCenter.dy - halfWidth * sin(perpAngle));
+
+    final needlePath = Path()
+      ..moveTo(tip.dx, tip.dy)
+      ..lineTo(baseLeft.dx, baseLeft.dy)
+      ..lineTo(baseRight.dx, baseRight.dy)
+      ..close();
+
+    canvas.drawPath(needlePath, Paint()..color = const Color(0xFF3E3745));
+    canvas.drawPath(needlePath, Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8);
   }
 
   void _drawCenterCircle(Canvas canvas, Offset center, double radius) {

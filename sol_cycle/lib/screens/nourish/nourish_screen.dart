@@ -27,7 +27,7 @@ class NourishScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.menu_rounded),
-                onPressed: Scaffold.of(context).openDrawer,
+                onPressed: Scaffold.of(context).openEndDrawer,
               ),
             ],
           ),
