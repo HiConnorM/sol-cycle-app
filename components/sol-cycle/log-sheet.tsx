@@ -131,7 +131,11 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
         </div>
         
         {/* Tabs */}
-        <div className="flex items-center gap-1 px-3 py-2 border-b border-border overflow-x-auto">
+        <div
+          role="tablist"
+          aria-label="Log sections"
+          className="flex items-center gap-1 px-3 py-2 border-b border-border overflow-x-auto"
+        >
           {[
             { id: 'flow', label: 'Flow', icon: Droplets },
             { id: 'symptoms', label: 'Symptoms', icon: Activity },
@@ -140,15 +144,17 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
           ].map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
-                activeTab === tab.id 
-                  ? 'bg-primary text-primary-foreground' 
+                activeTab === tab.id
+                  ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
               )}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-4 h-4" aria-hidden="true" />
               {tab.label}
             </button>
           ))}
@@ -165,14 +171,15 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   {FLOW_OPTIONS.map((option) => (
                     <button
                       key={option.value}
+                      aria-pressed={flow === option.value}
                       onClick={() => setFlow(option.value)}
                       className={cn(
                         'px-4 py-2 rounded-full text-sm font-medium transition-all',
-                        flow === option.value 
-                          ? 'ring-2 ring-offset-2 ring-primary' 
+                        flow === option.value
+                          ? 'ring-2 ring-offset-2 ring-primary'
                           : 'hover:opacity-80'
                       )}
-                      style={{ 
+                      style={{
                         backgroundColor: option.color,
                         color: option.value === 'none' ? 'var(--foreground)' : '#2B2B2B',
                       }}
@@ -192,6 +199,10 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   min="0"
                   max="10"
                   value={painLevel}
+                  aria-label="Pain level"
+                  aria-valuemin={0}
+                  aria-valuemax={10}
+                  aria-valuenow={painLevel}
                   onChange={(e) => setPainLevel(parseInt(e.target.value))}
                   className="w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer accent-primary"
                 />
@@ -212,6 +223,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                     {PAIN_LOCATIONS.map((loc) => (
                       <button
                         key={loc}
+                        aria-pressed={painLocations.includes(loc)}
                         onClick={() => togglePainLocation(loc)}
                         className={cn(
                           'px-3 py-1.5 rounded-full text-xs transition-all',
@@ -236,6 +248,10 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   min="0"
                   max="10"
                   value={energy}
+                  aria-label="Energy level"
+                  aria-valuemin={0}
+                  aria-valuemax={10}
+                  aria-valuenow={energy}
                   onChange={(e) => setEnergy(parseInt(e.target.value))}
                   className="w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer accent-accent"
                 />
@@ -278,6 +294,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   {PHYSICAL_SYMPTOMS.map((symptom) => (
                     <button
                       key={symptom}
+                      aria-pressed={symptoms.includes(symptom)}
                       onClick={() => toggleSymptom(symptom)}
                       className={cn(
                         'px-3 py-1.5 rounded-full text-sm transition-all',
@@ -298,6 +315,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   {EMOTIONAL_SYMPTOMS.map((symptom) => (
                     <button
                       key={symptom}
+                      aria-pressed={symptoms.includes(symptom)}
                       onClick={() => toggleSymptom(symptom)}
                       className={cn(
                         'px-3 py-1.5 rounded-full text-sm transition-all',
@@ -318,6 +336,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   {PMDD_SYMPTOMS.map((symptom) => (
                     <button
                       key={symptom}
+                      aria-pressed={symptoms.includes(symptom)}
                       onClick={() => toggleSymptom(symptom)}
                       className={cn(
                         'px-3 py-1.5 rounded-full text-sm transition-all',
@@ -342,6 +361,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                 {MOODS.map((mood) => (
                   <button
                     key={mood}
+                    aria-pressed={moods.includes(mood)}
                     onClick={() => toggleMood(mood)}
                     className={cn(
                       'px-4 py-2 rounded-full text-sm transition-all',
@@ -376,22 +396,24 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
           <div className="mx-5 mb-2 p-4 rounded-2xl bg-red-50 border border-red-200">
             <p className="text-sm font-semibold text-red-900 mb-1">You're not alone</p>
             <p className="text-xs text-red-800 mb-3 leading-relaxed">
-              If you're having thoughts of suicide or self-harm, please reach out. Help is available right now.
+              If you may hurt yourself or feel like you cannot stay safe, call or text 988 in the U.S. or Canada. If you are in immediate danger, call emergency services now.
             </p>
             <div className="space-y-2">
               <a
                 href="tel:988"
+                aria-label="Call 988 Suicide and Crisis Lifeline"
                 className="flex items-center justify-between p-2.5 bg-red-100 rounded-xl"
               >
                 <span className="text-sm font-medium text-red-900">988 Suicide &amp; Crisis Lifeline</span>
-                <span className="text-sm font-bold text-red-700">Call 988</span>
+                <span className="text-sm font-bold text-red-700" aria-hidden="true">Call 988</span>
               </a>
               <a
                 href="sms:741741&body=HOME"
+                aria-label="Text HOME to 741741 to reach Crisis Text Line"
                 className="flex items-center justify-between p-2.5 bg-red-100 rounded-xl"
               >
                 <span className="text-sm font-medium text-red-900">Crisis Text Line</span>
-                <span className="text-sm font-bold text-red-700">Text HOME to 741741</span>
+                <span className="text-sm font-bold text-red-700" aria-hidden="true">Text HOME to 741741</span>
               </a>
             </div>
           </div>

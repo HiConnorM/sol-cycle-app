@@ -10,7 +10,9 @@ import { BottomNav, type NavTab } from '@/components/sol-cycle/bottom-nav'
 import { SideMenu } from '@/components/sol-cycle/side-menu'
 import { Onboarding, isOnboardingComplete } from '@/components/sol-cycle/onboarding'
 import { PrivacyConsent, isPrivacyAccepted } from '@/components/sol-cycle/privacy-consent'
+import { BiometricLockScreen } from '@/components/sol-cycle/biometric-lock-screen'
 import { useCycle } from '@/lib/hooks/use-cycle'
+import { useBiometricLock } from '@/lib/hooks/use-biometric-lock'
 
 export default function SolCycleApp() {
   const [activeTab, setActiveTab] = useState<NavTab>('today')
@@ -20,6 +22,7 @@ export default function SolCycleApp() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const { logDay, getLogForDate } = useCycle()
+  const { isEnabled: biometricEnabled, isLocked, isAuthenticating, authError, unlock } = useBiometricLock()
 
   // Privacy gate → onboarding gate, checked once on mount (client-only)
   useEffect(() => {
@@ -51,6 +54,15 @@ export default function SolCycleApp() {
   
   return (
     <div className="min-h-screen bg-background">
+      {/* Biometric lock overlay — shown when lock is enabled and app is locked */}
+      {biometricEnabled && isLocked && (
+        <BiometricLockScreen
+          isAuthenticating={isAuthenticating}
+          authError={authError}
+          onUnlock={unlock}
+        />
+      )}
+
       {/* Privacy consent — shown before onboarding on first launch */}
       {showPrivacy && (
         <PrivacyConsent

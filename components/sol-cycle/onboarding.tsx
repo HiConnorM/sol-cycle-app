@@ -89,7 +89,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between px-6 py-10 max-w-md mx-auto">
+    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between px-6 safe-area-inset max-w-md mx-auto" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
       {/* Progress dots */}
       {step !== 'welcome' && (
         <div className="w-full flex justify-center gap-2 pt-2">
