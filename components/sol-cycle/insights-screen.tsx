@@ -150,11 +150,11 @@ export function InsightsScreen() {
               >
                 <div className="flex items-center gap-2 mb-2">
                   <AlertCircle className="w-5 h-5" style={{ color: 'var(--phase-luteal)' }} />
-                  <h3 className="font-semibold text-foreground">PMDD Window Active</h3>
+                  <h3 className="font-semibold text-foreground">Sensitive window active</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  You're in the luteal phase when PMDD symptoms typically occur. 
-                  Be extra gentle with yourself.
+                  You're in the pre-period phase when emotional and physical symptoms
+                  often feel more intense. Be extra gentle with yourself.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Day {cycleDay} of your cycle

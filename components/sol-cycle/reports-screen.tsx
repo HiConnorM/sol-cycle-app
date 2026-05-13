@@ -184,8 +184,8 @@ export function ReportsScreen() {
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-900">PMDD Window</p>
-                      <p className="text-xs text-amber-700">Extra self-care recommended</p>
+                      <p className="text-sm font-medium text-amber-900">Sensitive window</p>
+                      <p className="text-xs text-amber-700">Gentle care may help</p>
                       {pmddProfile.hasPattern && pmddProfile.trend && (
                         <div className="flex items-center gap-1 mt-1.5">
                           {pmddProfile.trend === 'improving' && <TrendingDown className="w-3 h-3 text-green-600" />}
@@ -213,7 +213,7 @@ export function ReportsScreen() {
                     {pmddProfile.trend === 'worsening' && <TrendingUp className="w-4 h-4 text-red-500" />}
                     <div>
                       <p className="text-sm font-medium text-foreground">
-                        Pre-period mood pattern · {pmddProfile.trend.charAt(0).toUpperCase() + pmddProfile.trend.slice(1)}
+                        Pre-period pattern noticed · {pmddProfile.trend.charAt(0).toUpperCase() + pmddProfile.trend.slice(1)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Based on {pmddProfile.cyclesObserved} cycle{pmddProfile.cyclesObserved !== 1 ? 's' : ''} of data
@@ -248,7 +248,7 @@ export function ReportsScreen() {
               </p>
             </div>
             <div className="bg-card rounded-xl p-4 border border-border">
-              <p className="text-xs text-muted-foreground">Prediction Confidence</p>
+              <p className="text-xs text-muted-foreground">Estimate reliability</p>
               <p className="text-xl font-semibold text-foreground">{prediction.confidence}%</p>
             </div>
             <div className="bg-card rounded-xl p-4 border border-border">
@@ -406,7 +406,7 @@ export function ReportsScreen() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Ovulation Window</p>
-                      <p className="text-xs text-muted-foreground">Peak fertility</p>
+                      <p className="text-xs text-muted-foreground">Estimated ovulation window</p>
                     </div>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -422,8 +422,8 @@ export function ReportsScreen() {
                       <AlertCircle className="w-4 h-4 text-[#D8A7A7]" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">PMDD Window</p>
-                      <p className="text-xs text-muted-foreground">Prepare for extra care</p>
+                      <p className="font-medium text-foreground">Sensitive window</p>
+                      <p className="text-xs text-muted-foreground">Gentle care may help</p>
                     </div>
                   </div>
                   <span className="text-sm text-muted-foreground">
