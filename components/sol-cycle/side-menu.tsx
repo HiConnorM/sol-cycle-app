@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/accordion'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useCalendar } from '@/lib/hooks/use-calendar'
+import { useBiometricLock } from '@/lib/hooks/use-biometric-lock'
 import { clearAllData } from '@/lib/storage/cycle-storage'
 
 interface SideMenuProps {
@@ -108,6 +109,7 @@ const DEFAULT_PROFILE: UserProfile = {
 export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const { settings, cycleDay, currentPhase, logs, updateSettings } = useCycle()
   const { calendarSystem, toggleCalendarSystem } = useCalendar()
+  const { isEnabled: biometricEnabled, isSupported: biometricSupported, isAuthenticating: biometricAuthenticating, enable: enableBiometric, disable: disableBiometric } = useBiometricLock()
   const [mounted, setMounted] = useState(false)
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
@@ -465,7 +467,33 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                           onCheckedChange={(checked) => updatePreferences({ journalPrivacy: checked })}
                         />
                       </div>
-                      
+
+                      {/* Biometric Lock */}
+                      {biometricSupported && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Lock className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <span className="text-sm text-foreground">Biometric Lock</span>
+                              <p className="text-xs text-muted-foreground">
+                                Require Face ID or Touch ID to open
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={biometricEnabled}
+                            disabled={biometricAuthenticating}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                enableBiometric()
+                              } else {
+                                disableBiometric()
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+
                       <Separator />
                       
                       {/* Data Actions */}
@@ -482,20 +510,12 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full justify-start"
-                          onClick={() => alert('PDF export coming soon!')}
+                          className="w-full justify-start opacity-50 cursor-not-allowed"
+                          disabled
+                          title="Coming in a future update"
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           Export Report (PDF)
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start text-muted-foreground"
-                          onClick={() => alert('Coming soon: See exactly what data we store')}
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          What We Know About You
                         </Button>
                         <Button
                           variant="destructive"
@@ -666,18 +686,19 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         <span className="font-medium text-foreground">Reports & Exports</span>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="pl-11 space-y-2">
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Generate Clinician Report
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start">
+                    <AccordionContent className="pl-11 space-y-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Export your full cycle history as JSON from Privacy & Data above.
+                        Additional report formats are coming in a future update.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => exportData('json')}
+                      >
                         <Download className="w-4 h-4 mr-2" />
-                        Download Cycle History
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        View Symptom Patterns
+                        Export All Data (JSON)
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
