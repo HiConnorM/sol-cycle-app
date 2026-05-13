@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { PWARegister } from '@/components/pwa-register'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _geist = Geist({ subsets: ['latin'] })
+const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -15,25 +16,23 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Sol Cycle - Period & Cycle Tracking',
-  description: 'Track your menstrual cycle, manage PMDD symptoms, and sync your life with your natural rhythm. Features a unique radial wheel calendar with 12/13 month views.',
-  generator: 'v0.app',
+  title: 'Sol Cycle',
+  description:
+    'Privacy-first cycle tracking. Log your period, symptoms, and mood — all on your device, no account needed.',
+  applicationName: 'Sol Cycle',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Sol Cycle',
+    statusBarStyle: 'default',
+  },
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: '/apple-icon.png',
+    apple: '/apple-touch-icon.png',
   },
 }
 
@@ -44,8 +43,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body className="font-sans antialiased">
         {children}
+        <PWARegister />
         <Analytics />
       </body>
     </html>

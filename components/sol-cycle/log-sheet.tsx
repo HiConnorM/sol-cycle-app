@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { X, Droplets, Smile, Activity, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { CycleLog, FlowLevel } from '@/lib/types'
-import { PHYSICAL_SYMPTOMS, EMOTIONAL_SYMPTOMS, PMDD_SYMPTOMS, MOODS } from '@/lib/types'
+import type { CycleLog, FlowLevel, PainLocation } from '@/lib/types'
+import { PHYSICAL_SYMPTOMS, EMOTIONAL_SYMPTOMS, PMDD_SYMPTOMS, MOODS, PAIN_LOCATIONS } from '@/lib/types'
 
 interface LogSheetProps {
   isOpen: boolean
@@ -27,8 +27,10 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
   const [symptoms, setSymptoms] = useState<string[]>([])
   const [moods, setMoods] = useState<string[]>([])
   const [painLevel, setPainLevel] = useState(0)
+  const [painLocations, setPainLocations] = useState<PainLocation[]>([])
   const [energy, setEnergy] = useState(5)
   const [notes, setNotes] = useState('')
+  const [bbt, setBbt] = useState<string>('') // string for input; parsed to number on save
   const [activeTab, setActiveTab] = useState<'flow' | 'symptoms' | 'mood' | 'notes'>('flow')
   
   // Load existing log data
@@ -38,15 +40,19 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
       setSymptoms(existingLog.symptoms)
       setMoods(existingLog.moods)
       setPainLevel(existingLog.painLevel)
+      setPainLocations(existingLog.painLocations ?? [])
       setEnergy(existingLog.energy)
       setNotes(existingLog.notes)
+      setBbt(existingLog.bbt !== undefined ? String(existingLog.bbt) : '')
     } else {
       setFlow('none')
       setSymptoms([])
       setMoods([])
       setPainLevel(0)
+      setPainLocations([])
       setEnergy(5)
       setNotes('')
+      setBbt('')
     }
   }, [existingLog, date])
   
@@ -66,7 +72,14 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
     )
   }
   
+  const togglePainLocation = (loc: PainLocation) => {
+    setPainLocations(prev =>
+      prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc]
+    )
+  }
+
   const handleSave = () => {
+    const parsedBbt = bbt.trim() !== '' ? parseFloat(bbt) : undefined
     const log: CycleLog = {
       date: date.toISOString().split('T')[0],
       flow,
@@ -75,6 +88,8 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
       painLevel,
       energy,
       notes,
+      ...(painLocations.length > 0 && { painLocations }),
+      ...(parsedBbt !== undefined && !isNaN(parsedBbt) && { bbt: parsedBbt }),
     }
     onSave(log)
     onClose()
@@ -185,7 +200,33 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                   <span>Severe</span>
                 </div>
               </div>
-              
+
+              {/* Pain location — shown when pain > 0 */}
+              {painLevel > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-foreground mb-1">Pain Location</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Optional — helps track patterns over time.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {PAIN_LOCATIONS.map((loc) => (
+                      <button
+                        key={loc}
+                        onClick={() => togglePainLocation(loc)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-full text-xs transition-all',
+                          painLocations.includes(loc)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-3">
                   Energy Level: {energy}/10
@@ -201,6 +242,28 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>Exhausted</span>
                   <span>Energized</span>
+                </div>
+              </div>
+
+              {/* Basal Body Temperature — optional */}
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-1">
+                  Basal Body Temperature
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Optional — taken first thing in the morning before getting up. Stored with your log; not yet used in cycle predictions.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    placeholder="e.g. 97.6"
+                    value={bbt}
+                    onChange={(e) => setBbt(e.target.value)}
+                    className="w-32 px-3 py-2 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                  <span className="text-sm text-muted-foreground">°F / °C</span>
                 </div>
               </div>
             </div>
@@ -308,6 +371,32 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
           )}
         </div>
         
+        {/* Crisis resource banner — shown whenever "Suicidal thoughts" is logged */}
+        {symptoms.includes('Suicidal thoughts') && (
+          <div className="mx-5 mb-2 p-4 rounded-2xl bg-red-50 border border-red-200">
+            <p className="text-sm font-semibold text-red-900 mb-1">You're not alone</p>
+            <p className="text-xs text-red-800 mb-3 leading-relaxed">
+              If you're having thoughts of suicide or self-harm, please reach out. Help is available right now.
+            </p>
+            <div className="space-y-2">
+              <a
+                href="tel:988"
+                className="flex items-center justify-between p-2.5 bg-red-100 rounded-xl"
+              >
+                <span className="text-sm font-medium text-red-900">988 Suicide &amp; Crisis Lifeline</span>
+                <span className="text-sm font-bold text-red-700">Call 988</span>
+              </a>
+              <a
+                href="sms:741741&body=HOME"
+                className="flex items-center justify-between p-2.5 bg-red-100 rounded-xl"
+              >
+                <span className="text-sm font-medium text-red-900">Crisis Text Line</span>
+                <span className="text-sm font-bold text-red-700">Text HOME to 741741</span>
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border safe-area-pb">
           <button

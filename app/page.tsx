@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TodayScreen } from '@/components/sol-cycle/today-screen'
 import { ReportsScreen } from '@/components/sol-cycle/reports-screen'
 import { LogSheet } from '@/components/sol-cycle/log-sheet'
@@ -8,6 +8,8 @@ import { NourishScreen } from '@/components/sol-cycle/nourish-screen'
 import { InsightsScreen } from '@/components/sol-cycle/insights-screen'
 import { BottomNav, type NavTab } from '@/components/sol-cycle/bottom-nav'
 import { SideMenu } from '@/components/sol-cycle/side-menu'
+import { Onboarding, isOnboardingComplete } from '@/components/sol-cycle/onboarding'
+import { PrivacyConsent, isPrivacyAccepted } from '@/components/sol-cycle/privacy-consent'
 import { useCycle } from '@/lib/hooks/use-cycle'
 
 export default function SolCycleApp() {
@@ -15,7 +17,18 @@ export default function SolCycleApp() {
   const [isLogOpen, setIsLogOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [showPrivacy, setShowPrivacy] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const { logDay, getLogForDate } = useCycle()
+
+  // Privacy gate → onboarding gate, checked once on mount (client-only)
+  useEffect(() => {
+    if (!isPrivacyAccepted()) {
+      setShowPrivacy(true)
+    } else if (!isOnboardingComplete()) {
+      setShowOnboarding(true)
+    }
+  }, [])
   
   // Handle tab changes
   const handleTabChange = (tab: NavTab) => {
@@ -38,10 +51,25 @@ export default function SolCycleApp() {
   
   return (
     <div className="min-h-screen bg-background">
+      {/* Privacy consent — shown before onboarding on first launch */}
+      {showPrivacy && (
+        <PrivacyConsent
+          onAccept={() => {
+            setShowPrivacy(false)
+            if (!isOnboardingComplete()) setShowOnboarding(true)
+          }}
+        />
+      )}
+
+      {/* Onboarding — shown after privacy consent on first launch */}
+      {!showPrivacy && showOnboarding && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} />
+      )}
+
       {/* Side Menu */}
-      <SideMenu 
-        isOpen={isMenuOpen} 
-        onClose={() => setIsMenuOpen(false)} 
+      <SideMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
       />
       
       {/* Main content based on active tab */}

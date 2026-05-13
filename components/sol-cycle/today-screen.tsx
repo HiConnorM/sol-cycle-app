@@ -5,6 +5,7 @@ import { Sun, Moon, Sparkles, Heart, Utensils, Dumbbell, Menu } from 'lucide-rea
 import { LivingWheel } from './living-wheel'
 import { InsightCard } from './insight-card'
 import { TaskCard } from './task-card'
+import { PredictionExplainer } from './prediction-explainer'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useTasks } from '@/lib/hooks/use-tasks'
 import { useCalendar } from '@/lib/hooks/use-calendar'
@@ -16,7 +17,7 @@ interface TodayScreenProps {
 }
 
 export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
-  const { cycleDay, currentPhase, phaseInfo, daysUntil, inPMDDWindow, settings, logs } = useCycle()
+  const { cycleDay, currentPhase, phaseInfo, daysUntil, inPMDDWindow, prediction, pmddProfile, settings, logs } = useCycle()
   const { tasks, toggleTask, addTask, tasksByFrequency } = useTasks()
   const { currentDate, calendarSystem, toggleCalendarSystem, moonPhase } = useCalendar()
   const [mounted, setMounted] = useState(false)
@@ -43,13 +44,20 @@ export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
     else setGreeting('Good evening')
   }, [])
   
-  // Status text
+  // Status text — uses range when confidence is low/learning
   const statusText = useMemo(() => {
     if (!cycleDay) return 'Start tracking your cycle'
-    if (daysUntil && daysUntil <= 3) return `Period expected in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`
-    if (inPMDDWindow) return 'PMDD window - take extra care'
+    if (daysUntil !== null && daysUntil <= 3) {
+      const { earliest, latest } = prediction.nextPeriodRange
+      if (prediction.confidenceTier !== 'high' && earliest && latest && earliest.toDateString() !== latest.toDateString()) {
+        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        return `Period expected ${fmt(earliest)} – ${fmt(latest)}`
+      }
+      return `Period expected in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`
+    }
+    if (inPMDDWindow) return pmddProfile.hasPattern ? 'Your pre-period window — extra care today' : 'Pre-period window — take extra care'
     return phaseInfo?.description || ''
-  }, [cycleDay, daysUntil, inPMDDWindow, phaseInfo])
+  }, [cycleDay, daysUntil, inPMDDWindow, phaseInfo, prediction, pmddProfile])
   
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -194,16 +202,25 @@ export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
           </>
         )}
         
-        {/* PMDD Support */}
+        {/* Prediction explainer — shown once period is within 7 days */}
+        {cycleDay && daysUntil !== null && daysUntil <= 7 && prediction.nextPeriodStart && (
+          <PredictionExplainer prediction={prediction} />
+        )}
+
+        {/* Pre-period / PMDD Support card */}
         {inPMDDWindow && recommendations?.pmddSupport && (
           <InsightCard
-            title="PMDD Support"
-            label="Priority"
+            title={pmddProfile.hasPattern ? 'Your Pre-Period Pattern' : 'PMDD Support'}
+            label={pmddProfile.hasPattern && pmddProfile.severity ? pmddProfile.severity.charAt(0).toUpperCase() + pmddProfile.severity.slice(1) : 'Priority'}
             phase="luteal"
             variant="highlight"
             icon={<Heart className="w-4 h-4" />}
           >
-            <p className="mb-2">{recommendations.pmddSupport.message}</p>
+            {pmddProfile.hasPattern && pmddProfile.reason.length > 0 ? (
+              <p className="mb-2 text-sm">{pmddProfile.reason[0]}</p>
+            ) : (
+              <p className="mb-2">{recommendations.pmddSupport.message}</p>
+            )}
             <ul className="space-y-1">
               {recommendations.pmddSupport.tips.map((tip, i) => (
                 <li key={i} className="flex items-start gap-2">
