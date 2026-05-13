@@ -53,6 +53,10 @@ export interface CycleLog {
   painLevel: number // 0-10
   energy: number // 0-10
   notes: string
+  // Optional fields. Older logs without these are valid; the engine treats
+  // missing values as missing (not zero).
+  painLocations?: PainLocation[]
+  bbt?: number // basal body temperature, °F or °C — unit per user preference
 }
 
 export interface CycleSettings {
@@ -174,4 +178,87 @@ export interface UserPreferences {
   theme: 'light' | 'dark' | 'system'
   cycleSettings: CycleSettings
   notificationsEnabled: boolean
+}
+
+// Pain locations — used for endometriosis pattern flags. Optional on logs.
+export const PAIN_LOCATIONS = [
+  'Lower abdomen',
+  'Lower back',
+  'Pelvic',
+  'Leg',
+  'Ovary - left',
+  'Ovary - right',
+  'Bowel',
+  'Bladder',
+] as const
+
+export type PainLocation = typeof PAIN_LOCATIONS[number]
+
+// Prediction engine types
+export type ConfidenceTier = 'learning' | 'low' | 'medium' | 'high'
+
+export interface DateRange {
+  earliest: Date | null
+  latest: Date | null
+}
+
+export interface CyclePrediction {
+  nextPeriodStart: Date | null
+  nextPeriodRange: DateRange
+  nextOvulation: Date | null
+  pmddWindowStart: Date | null
+  pmddWindowEnd: Date | null
+  pmddWindowStartDay: number | null // cycle day
+  pmddWindowEndDay: number | null
+  confidence: number // 0-100
+  confidenceTier: ConfidenceTier
+  projectedCycleLength: number
+  cycleLengthStdDev: number
+  trend: 'regular' | 'irregular' | 'shortening' | 'lengthening'
+  reason: string[]
+  cycleHistoryCount: number
+}
+
+// One detected past cycle, persisted in storage as a derived cache.
+export interface CycleHistoryEntry {
+  startDate: string // ISO
+  length: number
+}
+
+export interface SymptomPattern {
+  symptom: string
+  frequency: number // 0-1, fraction of cycles where this symptom appeared
+  avgCycleDay: number
+  spread: number // ± days (1 std dev)
+  phase: CyclePhase
+  occurrences: number
+  isLeadIndicator: boolean // appears reliably before period start
+  daysBeforePeriod?: number // if lead indicator, average lead time
+}
+
+export interface PMDDProfile {
+  hasPattern: boolean
+  windowStartDay: number | null // cycle day in current/projected cycle
+  windowEndDay: number | null
+  windowStartDate: Date | null
+  windowEndDate: Date | null
+  severity: 'mild' | 'moderate' | 'severe' | null
+  trend: 'improving' | 'steady' | 'worsening' | null
+  cyclesObserved: number
+  reason: string[]
+}
+
+export type EndoFlagPattern =
+  | 'high-pain-recurring'
+  | 'pain-outside-bleeding'
+  | 'long-bleeding'
+  | 'bowel-bladder-pain'
+
+export interface EndoFlag {
+  pattern: EndoFlagPattern
+  title: string
+  description: string
+  evidence: string
+  cyclesObserved: number
+  suggestedAction: string
 }

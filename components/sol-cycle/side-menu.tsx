@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/accordion'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useCalendar } from '@/lib/hooks/use-calendar'
+import { clearAllData } from '@/lib/storage/cycle-storage'
 
 interface SideMenuProps {
   isOpen: boolean
@@ -105,7 +106,7 @@ const DEFAULT_PROFILE: UserProfile = {
 }
 
 export function SideMenu({ isOpen, onClose }: SideMenuProps) {
-  const { settings, cycleDay, currentPhase, logs } = useCycle()
+  const { settings, cycleDay, currentPhase, logs, updateSettings } = useCycle()
   const { calendarSystem, toggleCalendarSystem } = useCalendar()
   const [mounted, setMounted] = useState(false)
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
@@ -187,7 +188,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   // Delete all data
   const deleteAllData = () => {
     if (confirm('Are you sure you want to delete all your data? This cannot be undone.')) {
-      localStorage.clear()
+      clearAllData()
       window.location.reload()
     }
   }
@@ -360,6 +361,57 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                               {day.label}
                             </button>
                           ))}
+                        </div>
+                      </div>
+
+                      {/* Last Period Start */}
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Last period started</label>
+                        <input
+                          type="date"
+                          defaultValue={settings.lastPeriodStart ?? ''}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              updateSettings({ lastPeriodStart: e.target.value })
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-secondary rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Used to anchor predictions. The app also updates this automatically when you log a period.
+                        </p>
+                      </div>
+
+                      {/* Cycle / Period lengths */}
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <label className="text-muted-foreground">Typical cycle length</label>
+                            <span className="font-medium text-foreground">{settings.averageCycleLength} days</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="21"
+                            max="45"
+                            value={settings.averageCycleLength}
+                            onChange={(e) => updateSettings({ averageCycleLength: Number(e.target.value) })}
+                            className="w-full h-1.5 bg-secondary rounded-full appearance-none cursor-pointer accent-primary"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <label className="text-muted-foreground">Typical period length</label>
+                            <span className="font-medium text-foreground">{settings.averagePeriodLength} days</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="2"
+                            max="10"
+                            value={settings.averagePeriodLength}
+                            onChange={(e) => updateSettings({ averagePeriodLength: Number(e.target.value) })}
+                            className="w-full h-1.5 bg-secondary rounded-full appearance-none cursor-pointer accent-primary"
+                          />
                         </div>
                       </div>
                     </AccordionContent>

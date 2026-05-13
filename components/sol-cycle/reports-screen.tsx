@@ -2,11 +2,11 @@
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { 
-  TrendingUp, 
-  Calendar, 
-  Moon, 
-  Heart, 
+import {
+  TrendingUp,
+  Calendar,
+  Moon,
+  Heart,
   Activity,
   AlertCircle,
   CheckCircle,
@@ -14,17 +14,18 @@ import {
   Battery,
   Info,
   ChevronRight,
+  TrendingDown,
+  Minus,
+  MessageSquare,
 } from 'lucide-react'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useCalendar } from '@/lib/hooks/use-calendar'
-import { 
-  analyzeCyclePatterns, 
-  generateInsights, 
+import {
+  generateInsights,
   getMoonCycleCorrelation,
   type PatternInsight,
 } from '@/lib/calendar/cycle-predictions'
-import { getPhaseInfo, getCyclePhase } from '@/lib/calendar/cycle-calculations'
-import { getMoonPhase } from '@/lib/calendar/moon-phases'
+import { PredictionExplainer } from './prediction-explainer'
 
 const iconMap: Record<string, typeof Activity> = {
   'calendar': Calendar,
@@ -53,21 +54,17 @@ function InsightIcon({ icon, type }: { icon: string; type: PatternInsight['type'
 }
 
 export function ReportsScreen() {
-  const { cycleDay, settings, logs, currentPhase, phaseInfo, inPMDDWindow } = useCycle()
-  const { currentDate, moonPhase } = useCalendar()
-  
-  // Analyze patterns and generate predictions
-  const prediction = useMemo(() => {
-    return analyzeCyclePatterns(logs, settings)
-  }, [logs, settings])
-  
+  const { cycleDay, settings, logs, currentPhase, phaseInfo, inPMDDWindow, prediction, symptomPatterns, pmddProfile, endoFlags } = useCycle()
+  const { currentDate } = useCalendar()
+
+  // Insights use the hook's prediction + correct symptom patterns (no array-index bug)
   const insights = useMemo(() => {
-    return generateInsights(logs, settings, prediction)
-  }, [logs, settings, prediction])
-  
+    return generateInsights(logs, settings, prediction, symptomPatterns)
+  }, [logs, settings, prediction, symptomPatterns])
+
   const moonCorrelation = useMemo(() => {
-    return getMoonCycleCorrelation(logs, settings)
-  }, [logs, settings])
+    return getMoonCycleCorrelation(logs)
+  }, [logs])
   
   // Calculate cycle progress
   const cycleProgress = cycleDay && settings.averageCycleLength 
@@ -181,14 +178,46 @@ export function ReportsScreen() {
                 </div>
               </div>
               
-              {/* PMDD Warning */}
+              {/* PMDD Warning + trend */}
               {inPMDDWindow && (
                 <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-amber-900">PMDD Window</p>
                       <p className="text-xs text-amber-700">Extra self-care recommended</p>
+                      {pmddProfile.hasPattern && pmddProfile.trend && (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          {pmddProfile.trend === 'improving' && <TrendingDown className="w-3 h-3 text-green-600" />}
+                          {pmddProfile.trend === 'steady' && <Minus className="w-3 h-3 text-amber-600" />}
+                          {pmddProfile.trend === 'worsening' && <TrendingUp className="w-3 h-3 text-red-600" />}
+                          <span className={`text-xs font-medium ${
+                            pmddProfile.trend === 'improving' ? 'text-green-700' :
+                            pmddProfile.trend === 'worsening' ? 'text-red-700' : 'text-amber-700'
+                          }`}>
+                            Trend: {pmddProfile.trend.charAt(0).toUpperCase() + pmddProfile.trend.slice(1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PMDD pattern (outside active window) */}
+              {!inPMDDWindow && pmddProfile.hasPattern && pmddProfile.trend && (
+                <div className="mt-4 p-3 rounded-xl bg-secondary/60 border border-border">
+                  <div className="flex items-center gap-2">
+                    {pmddProfile.trend === 'improving' && <TrendingDown className="w-4 h-4 text-green-600" />}
+                    {pmddProfile.trend === 'steady' && <Minus className="w-4 h-4 text-muted-foreground" />}
+                    {pmddProfile.trend === 'worsening' && <TrendingUp className="w-4 h-4 text-red-500" />}
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Pre-period mood pattern · {pmddProfile.trend.charAt(0).toUpperCase() + pmddProfile.trend.slice(1)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Based on {pmddProfile.cyclesObserved} cycle{pmddProfile.cyclesObserved !== 1 ? 's' : ''} of data
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -411,11 +440,18 @@ export function ReportsScreen() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Next Period</p>
-                      <p className="text-xs text-muted-foreground">Estimated start</p>
+                      <p className="text-xs text-muted-foreground">
+                        {prediction.confidenceTier === 'high' ? 'Estimated start' : 'Expected window'}
+                      </p>
                     </div>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    {prediction.nextPeriodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  <span className="text-sm text-muted-foreground text-right">
+                    {prediction.nextPeriodRange.earliest && prediction.nextPeriodRange.latest &&
+                     prediction.nextPeriodRange.earliest.toDateString() !== prediction.nextPeriodRange.latest.toDateString() &&
+                     prediction.confidenceTier !== 'high'
+                      ? `${prediction.nextPeriodRange.earliest.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${prediction.nextPeriodRange.latest.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                      : prediction.nextPeriodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    }
                   </span>
                 </div>
               )}
@@ -423,8 +459,57 @@ export function ReportsScreen() {
           </motion.div>
         )}
         
+        {/* Endo flags — shown when the engine has detected patterns worth noting */}
+        {endoFlags.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+            className="space-y-3"
+          >
+            <h2 className="text-sm font-medium text-muted-foreground">Patterns to Note</h2>
+            <div className="space-y-2">
+              {endoFlags.map((flag) => (
+                <div
+                  key={flag.pattern}
+                  className="bg-card rounded-xl p-4 border border-amber-200 space-y-2"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 rounded-lg bg-amber-50 mt-0.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">{flag.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{flag.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1 italic">{flag.evidence}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t border-border">
+                    <MessageSquare className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <p className="text-xs text-muted-foreground">{flag.suggestedAction}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground px-1 leading-relaxed">
+              These patterns are for your awareness only. Sol Cycle does not diagnose conditions.
+            </p>
+          </motion.div>
+        )}
+
+        {/* Prediction explainer — always shown when there's a next period date */}
+        {prediction.nextPeriodStart && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+          >
+            <PredictionExplainer prediction={prediction} />
+          </motion.div>
+        )}
+
         {/* Tips for Better Predictions */}
-        {logs.length < 60 && (
+        {prediction.confidenceTier === 'learning' && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -434,10 +519,10 @@ export function ReportsScreen() {
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-primary mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-foreground">Improve Your Predictions</p>
+                <p className="text-sm font-medium text-foreground">Predictions improve as you log</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Log daily for 2-3 cycles to get more accurate predictions. 
-                  The more data Sol Cycle has, the better it can understand your patterns.
+                  After 3 complete cycles, predictions shift from your default settings to
+                  your personal history — and get a real confidence score.
                 </p>
               </div>
             </div>
