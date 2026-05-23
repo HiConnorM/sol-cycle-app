@@ -26,7 +26,7 @@ export function PrivacyConsent({ onAccept }: PrivacyConsentProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between px-6 py-10 max-w-md mx-auto">
+    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between px-6 max-w-md mx-auto" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
       {/* Icon */}
       <div className="w-full flex justify-center pt-4">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#BFD8C2] to-[#EAD9A0] flex items-center justify-center shadow-lg">

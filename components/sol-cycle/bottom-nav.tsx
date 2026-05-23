@@ -42,7 +42,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 isActive && !isLogTab && 'text-primary',
                 !isActive && !isLogTab && 'text-muted-foreground hover:text-foreground',
               )}
-              aria-current={isActive ? 'page' : undefined}
+              aria-label={isLogTab ? 'Log today' : tab.label}
+              aria-current={!isLogTab && isActive ? 'page' : undefined}
             >
               {isLogTab ? (
                 <div className="flex items-center justify-center w-12 h-12 -mt-6 rounded-full bg-primary text-primary-foreground shadow-lg">

@@ -30,7 +30,7 @@ const ARTICLES: Article[] = [
   {
     id: '1',
     title: 'Understanding PMDD: More Than Just PMS',
-    excerpt: 'PMDD affects 3-8% of menstruating people. Learn how it differs from PMS and what treatment options are available.',
+    excerpt: 'PMDD affects 3-8% of menstruating people. Learn how it differs from PMS and what management approaches exist.',
     category: 'PMDD',
     readTime: '5 min',
     featured: true,
@@ -150,11 +150,11 @@ export function InsightsScreen() {
               >
                 <div className="flex items-center gap-2 mb-2">
                   <AlertCircle className="w-5 h-5" style={{ color: 'var(--phase-luteal)' }} />
-                  <h3 className="font-semibold text-foreground">PMDD Window Active</h3>
+                  <h3 className="font-semibold text-foreground">Sensitive window active</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  You're in the luteal phase when PMDD symptoms typically occur. 
-                  Be extra gentle with yourself.
+                  You're in the pre-period phase when emotional and physical symptoms
+                  often feel more intense. Be extra gentle with yourself.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Day {cycleDay} of your cycle
@@ -238,7 +238,7 @@ export function InsightsScreen() {
                 <h3 className="font-semibold text-foreground">Crisis Resources</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                If you're having thoughts of self-harm or suicide, please reach out for help.
+                If you may hurt yourself or feel like you cannot stay safe, call or text 988 in the U.S. or Canada. If you are in immediate danger, call emergency services now.
               </p>
               <div className="space-y-3">
                 {CRISIS_RESOURCES.map((resource, i) => (
