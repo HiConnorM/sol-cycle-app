@@ -202,7 +202,36 @@ export function planNotifications(input: SchedulerInput): PlannedNotification[] 
   const byId = new Map<number, PlannedNotification>()
   for (const n of planned) if (!byId.has(n.id)) byId.set(n.id, n)
 
-  return [...byId.values()].sort((a, b) => a.at.getTime() - b.at.getTime())
+  const ordered = [...byId.values()].sort((a, b) => a.at.getTime() - b.at.getTime())
+
+  // Applied once, at the end, rather than at each call site above. Every rule
+  // that adds a notification is then discreet by construction — a new one
+  // cannot forget to handle it.
+  return preferences.discreetNotifications ? ordered.map(toDiscreet) : ordered
+}
+
+/**
+ * Neutral wording for a notification, used when discreet mode is on.
+ *
+ * The reminder still has to be worth acting on, so each one says there is
+ * something to see and where — it just never names a phase, a symptom, or
+ * anything about the body. The app's own name still appears in the iOS
+ * notification header; that is not suppressible and is not what leaks.
+ */
+const DISCREET_BODY: Record<NotificationKind, string> = {
+  'daily-check-in': 'Time for your daily check-in.',
+  'phase-change': 'There is an update waiting in the app.',
+  'pmdd-window': 'There is a note waiting for you in the app.',
+  'hard-day': 'There is a note waiting for you in the app.',
+  'meal-suggestion': 'There is a suggestion waiting in Nourish.',
+}
+
+export function toDiscreet(notification: PlannedNotification): PlannedNotification {
+  return {
+    ...notification,
+    title: 'Sol Cycle',
+    body: DISCREET_BODY[notification.kind],
+  }
 }
 
 /** Date keys of every planned notification — used by the tests and debug UI. */

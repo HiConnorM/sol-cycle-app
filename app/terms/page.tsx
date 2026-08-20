@@ -1,19 +1,25 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { CONTACT_EMAIL } from '@/lib/support'
 
 export const metadata: Metadata = {
   title: 'Terms of Use — Sol Cycle',
   description: 'Terms of use for Sol Cycle.',
 }
 
-const LAST_UPDATED = 'May 2025'
-const CONTACT_EMAIL = 'privacy@solcycle.app'
+const LAST_UPDATED = 'August 2026'
 const MIN_AGE = 13
 
 export default function TermsPage() {
+  // h-dvh with an inner scroll container, not document scroll. The iOS shell
+  // sets scrollEnabled:false on the web view so the app's own screens don't
+  // rubber-band, which also disables document scrolling — these pages were
+  // therefore stuck on their first screenful in the native build, with the
+  // rest of the policy unreachable. Scrolling <main> works in both the app and
+  // the browser, and the same build is what gets hosted publicly.
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 bg-background/90 backdrop-blur border-b border-border px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
+    <div className="flex h-dvh flex-col bg-background text-foreground">
+      <header className="shrink-0 bg-background/90 backdrop-blur border-b border-border px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Link
             href="/"
@@ -24,7 +30,8 @@ export default function TermsPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 pt-10 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] space-y-10">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="max-w-2xl mx-auto px-5 pt-10 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] space-y-10">
         <div>
           <h1 className="text-3xl font-semibold mb-2">Terms of Use</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
@@ -150,6 +157,7 @@ export default function TermsPage() {
             </a>
           </p>
         </Section>
+      </div>
       </main>
     </div>
   )

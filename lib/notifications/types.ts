@@ -16,6 +16,18 @@ export interface NotificationPreferences {
   hardDayAlerts: boolean
   mealSuggestions: boolean
   quietMode: boolean
+  /**
+   * Strip health detail from what the lock screen shows.
+   *
+   * iOS renders notification title and body on the lock screen by default, so
+   * "Entering your menstrual phase" is readable by anyone who glances at the
+   * phone. With this on, the reminder still arrives and still tells you there
+   * is something to see — it just does not say what.
+   *
+   * Defaults to on. The app name is visible either way; that much iOS always
+   * shows and no app can suppress.
+   */
+  discreetNotifications: boolean
 }
 
 /** Which toggle produced a given notification. */

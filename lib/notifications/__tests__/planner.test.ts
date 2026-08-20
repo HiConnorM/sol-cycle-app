@@ -21,6 +21,7 @@ const ALL_ON: NotificationPreferences = {
   hardDayAlerts: true,
   mealSuggestions: true,
   quietMode: false,
+  discreetNotifications: false,
 }
 
 const ALL_OFF: NotificationPreferences = {
@@ -31,6 +32,7 @@ const ALL_OFF: NotificationPreferences = {
   hardDayAlerts: false,
   mealSuggestions: false,
   quietMode: false,
+  discreetNotifications: false,
 }
 
 function prediction(overrides: Partial<CyclePrediction> = {}): CyclePrediction {
@@ -313,5 +315,101 @@ describe('content safety', () => {
       expect(n.title.trim().length).toBeGreaterThan(0)
       expect(n.body.trim().length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('discreet mode', () => {
+  const DISCREET: NotificationPreferences = { ...ALL_ON, discreetNotifications: true }
+
+  /** The words that must never reach a lock screen in discreet mode. */
+  const REVEALING = [
+    'menstrual',
+    'follicular',
+    'ovulatory',
+    'luteal',
+    'period',
+    'pre-period',
+    'cramps',
+    'cycle',
+    'phase',
+    'ovulation',
+  ]
+
+  const leadPattern: SymptomPattern = {
+    symptom: 'Cramps',
+    frequency: 0.9,
+    avgCycleDay: 26,
+    spread: 1,
+    phase: 'luteal',
+    occurrences: 5,
+    isLeadIndicator: true,
+    daysBeforePeriod: 2,
+  }
+
+  it('says nothing about the body in any notification', () => {
+    const planned = plan(DISCREET, { symptomPatterns: [leadPattern] })
+    expect(planned.length).toBeGreaterThan(0)
+    for (const n of planned) {
+      const text = `${n.title} ${n.body}`.toLowerCase()
+      for (const word of REVEALING) {
+        // 'Sol Cycle' is the app name, which iOS shows regardless; it is the
+        // only place the word 'cycle' may appear.
+        const withoutAppName = text.replace(/sol cycle/g, '')
+        expect(withoutAppName, `${word} in "${n.title} / ${n.body}"`).not.toContain(word)
+      }
+    }
+  })
+
+  it('names a symptom in normal mode but not in discreet mode', () => {
+    const normal = plan({ ...ALL_OFF, hardDayAlerts: true }, { symptomPatterns: [leadPattern] })
+    expect(normal[0].body.toLowerCase()).toContain('cramps')
+
+    const discreet = plan(
+      { ...ALL_OFF, hardDayAlerts: true, discreetNotifications: true },
+      { symptomPatterns: [leadPattern] }
+    )
+    expect(discreet[0].body.toLowerCase()).not.toContain('cramps')
+  })
+
+  it('names the phase in normal mode but not in discreet mode', () => {
+    const normal = plan({ ...ALL_OFF, phaseChangeAlerts: true })
+    expect(normal.some(n => /menstrual|follicular|ovulatory|luteal/i.test(n.title))).toBe(true)
+
+    const discreet = plan({ ...ALL_OFF, phaseChangeAlerts: true, discreetNotifications: true })
+    expect(discreet.some(n => /menstrual|follicular|ovulatory|luteal/i.test(n.title))).toBe(false)
+  })
+
+  it('still tells the user there is something to look at', () => {
+    for (const n of plan(DISCREET, { symptomPatterns: [leadPattern] })) {
+      expect(n.title.trim().length).toBeGreaterThan(0)
+      expect(n.body.trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it('changes only the wording, never the schedule', () => {
+    // Turning discreet mode on must not drop, add, or move a reminder.
+    const normal = plan(ALL_ON, { symptomPatterns: [leadPattern] })
+    const discreet = plan(DISCREET, { symptomPatterns: [leadPattern] })
+
+    expect(discreet.map(n => n.id)).toEqual(normal.map(n => n.id))
+    expect(discreet.map(n => n.at.getTime())).toEqual(normal.map(n => n.at.getTime()))
+    expect(discreet.map(n => n.kind)).toEqual(normal.map(n => n.kind))
+  })
+
+  it('covers every notification kind that can be planned', () => {
+    // A new kind added to the planner without discreet wording would surface
+    // here as an undefined body rather than shipping a leak.
+    const kinds = new Set(plan(DISCREET, { symptomPatterns: [leadPattern] }).map(n => n.kind))
+    expect(kinds.size).toBeGreaterThan(0)
+    for (const n of plan(DISCREET, { symptomPatterns: [leadPattern] })) {
+      expect(n.body, n.kind).toBeTypeOf('string')
+      expect(n.body).not.toBe('undefined')
+    }
+  })
+
+  it('is off in the fixtures used by the other suites', () => {
+    // Guards against a future default flip silently rewriting those assertions.
+    expect(ALL_ON.discreetNotifications).toBe(false)
+    expect(ALL_OFF.discreetNotifications).toBe(false)
   })
 })

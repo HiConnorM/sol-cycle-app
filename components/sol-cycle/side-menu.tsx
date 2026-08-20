@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   User,
@@ -10,7 +11,6 @@ import {
   Utensils,
   Bell,
   FileText,
-  CreditCard,
   HelpCircle,
   X,
   ChevronRight,
@@ -29,6 +29,12 @@ import {
   Lock,
 } from'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  exportUserData,
+  exportMessage,
+  type ExportOutcome,
+} from '@/lib/export/export-data'
+import { supportLink, bugReportLink, featureRequestLink } from '@/lib/support'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -84,6 +90,7 @@ interface Preferences {
   hardDayAlerts: boolean
   mealSuggestions: boolean
   quietMode: boolean
+  discreetNotifications: boolean
   foodTrackingStyle: 'light' | 'detailed'
   recommendationsEnabled: boolean
 }
@@ -101,6 +108,10 @@ const DEFAULT_PREFERENCES: Preferences = {
   hardDayAlerts: true,
   mealSuggestions: true,
   quietMode: false,
+  // On by default. The alternative puts "Entering your menstrual phase" on the
+  // lock screen for anyone who glances at the phone; someone who wants that
+  // detail can choose it, but it should not be chosen for them.
+  discreetNotifications: true,
   foodTrackingStyle: 'light',
   recommendationsEnabled: true,
 }
@@ -212,25 +223,23 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     }
   }
   
-  // Export data
-  const exportData = () => {
-    const data = {
+  // Export data. The mechanism differs by platform — see lib/export/export-data.ts.
+  const [exporting, setExporting] = useState(false)
+  const [exportResult, setExportResult] = useState<ExportOutcome | null>(null)
+
+  const exportData = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportResult(null)
+    const outcome = await exportUserData({
       profile,
       preferences,
       cycleSettings: settings,
       logs,
-      exportDate: new Date().toISOString(),
-    }
-    
-    {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `sol-cycle-export-${todayKey()}.json`
-      a.click()
-      URL.revokeObjectURL(url)
-    }
+    })
+    setExporting(false)
+    // A dismissed share sheet needs no message — the user chose to back out.
+    setExportResult(outcome.status === 'cancelled' ? null : outcome)
   }
   
   // Delete all data. Uses an in-app dialog rather than window.confirm(), which
@@ -278,7 +287,25 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             </div>
             
             {/* Scrollable Content */}
-            <ScrollArea className="flex-1">
+            {/*
+              select-none: the descriptive labels under each switch are <p>
+              elements, which globals.css makes selectable so that crisis phone
+              numbers and policy text can be copied. In a scrolling settings
+              list that backfires — a slow drag starts a text selection instead
+              of scrolling, and iOS pops its Copy/Translate callout. Nothing in
+              this menu is worth copying, so selection is off here specifically
+              rather than narrowing the global rule and risking the paths where
+              copying matters.
+            */}
+            {/*
+              min-h-0 is load-bearing: a flex item defaults to min-height:auto,
+              so `flex-1` alone let this grow to its content height instead of
+              being constrained by the panel. The viewport then had nothing to
+              overflow, and everything below the fold — the lock-screen and
+              quiet-mode switches, Reports, Help — was clipped and unreachable
+              whenever a section was expanded.
+            */}
+            <ScrollArea className="min-h-0 flex-1 select-none">
               <div className="p-4">
                 {/* 1. Profile Section */}
                 <div className="mb-6">
@@ -522,10 +549,24 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                           size="sm"
                           className="w-full justify-start"
                           onClick={() => exportData()}
+                          disabled={exporting}
                         >
                           <Download className="w-4 h-4 mr-2" />
-                          Export Data (JSON)
+                          {exporting ? 'Preparing your data…' : 'Export Data (JSON)'}
                         </Button>
+                        {exportResult && (
+                          <p
+                            role="status"
+                            className={cn(
+                              'text-xs leading-relaxed px-1',
+                              exportResult.status === 'failed'
+                                ? 'text-destructive'
+                                : 'text-muted-foreground'
+                            )}
+                          >
+                            {exportMessage(exportResult)}
+                          </p>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -690,8 +731,27 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                       
                       <Separator />
                       
+                      {/* Discreet notifications */}
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <span className="text-sm text-foreground">Hide details on lock screen</span>
+                          <p className="text-xs text-muted-foreground">
+                            Reminders still arrive, but won&rsquo;t say what they&rsquo;re about
+                            until you open the app
+                          </p>
+                        </div>
+                        <Switch
+                          checked={preferences.discreetNotifications}
+                          onCheckedChange={(checked) =>
+                            updatePreferences({ discreetNotifications: checked })
+                          }
+                          disabled={!preferences.notificationsEnabled}
+                          aria-label="Hide notification details on the lock screen"
+                        />
+                      </div>
+
                       {/* Quiet Mode */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-4">
                         <div>
                           <span className="text-sm text-foreground">Quiet Mode</span>
                           <p className="text-xs text-muted-foreground">Pause all notifications</p>
@@ -699,6 +759,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         <Switch
                           checked={preferences.quietMode}
                           onCheckedChange={(checked) => updatePreferences({ quietMode: checked })}
+                          aria-label="Pause all notifications"
                         />
                       </div>
                     </AccordionContent>
@@ -724,40 +785,28 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         size="sm"
                         className="w-full justify-start"
                         onClick={() => exportData()}
+                        disabled={exporting}
                       >
                         <Download className="w-4 h-4 mr-2" />
-                        Export All Data (JSON)
+                        {exporting ? 'Preparing your data…' : 'Export All Data (JSON)'}
                       </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                  
-                  {/* 8. Subscription */}
-                  <AccordionItem value="subscription" className="border-none">
-                    <AccordionTrigger className="py-3 hover:no-underline">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                          <CreditCard className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <span className="font-medium text-foreground">Subscription</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pl-11 space-y-3">
-                      <div className="p-3 rounded-lg bg-gradient-to-r from-phase-ovulatory/20 to-phase-follicular/20 border border-phase-follicular/30">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Sparkles className="w-4 h-4 text-phase-ovulatory" />
-                          <span className="text-sm font-medium text-foreground">Free Plan</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          You have access to all core features.
+                      {exportResult && (
+                        <p
+                          role="status"
+                          className={cn(
+                            'text-xs leading-relaxed px-1',
+                            exportResult.status === 'failed'
+                              ? 'text-destructive'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          {exportMessage(exportResult)}
                         </p>
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full">
-                        View Premium Features
-                      </Button>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                   
-                  {/* 9. Help & Support */}
+                  {/* 8. Help & Support */}
                   <AccordionItem value="help" className="border-none">
                     <AccordionTrigger className="py-3 hover:no-underline">
                       <div className="flex items-center gap-3">
@@ -768,21 +817,49 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pl-11 space-y-2">
-                      <Button variant="ghost" size="sm" className="w-full justify-start">
-                        <HelpCircle className="w-4 h-4 mr-2" />
-                        FAQ
+                      {/*
+                        Every control here opens a real destination. They were
+                        previously buttons with no handler, which reads as an
+                        unfinished app to App Review and is a dead end for the
+                        person tapping them.
+                      */}
+                      <Button asChild variant="ghost" size="sm" className="w-full justify-start">
+                        <a href={supportLink()}>
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Contact Support
+                        </a>
                       </Button>
-                      <Button variant="ghost" size="sm" className="w-full justify-start">
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Contact Support
+                      <Button asChild variant="ghost" size="sm" className="w-full justify-start">
+                        <a href={bugReportLink()}>
+                          <Bug className="w-4 h-4 mr-2" />
+                          Report a Bug
+                        </a>
                       </Button>
-                      <Button variant="ghost" size="sm" className="w-full justify-start">
-                        <Bug className="w-4 h-4 mr-2" />
-                        Report a Bug
+                      <Button asChild variant="ghost" size="sm" className="w-full justify-start">
+                        <a href={featureRequestLink()}>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Feature Request
+                        </a>
                       </Button>
-                      <Button variant="ghost" size="sm" className="w-full justify-start">
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Feature Request
+                      <Separator className="my-1" />
+                      {/*
+                        next/link rather than a bare anchor. The static export
+                        emits privacy.html, not privacy/index.html, so
+                        href="/privacy" resolves to a directory with no index
+                        and silently navigates nowhere. Client-side routing
+                        sidesteps the document fetch entirely.
+                      */}
+                      <Button asChild variant="ghost" size="sm" className="w-full justify-start">
+                        <Link href="/privacy" onClick={onClose}>
+                          <Shield className="w-4 h-4 mr-2" />
+                          Privacy Policy
+                        </Link>
+                      </Button>
+                      <Button asChild variant="ghost" size="sm" className="w-full justify-start">
+                        <Link href="/terms" onClick={onClose}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Terms of Use
+                        </Link>
                       </Button>
                     </AccordionContent>
                   </AccordionItem>

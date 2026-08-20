@@ -1,19 +1,25 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { CONTACT_EMAIL } from '@/lib/support'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — Sol Cycle',
   description: 'How Sol Cycle handles your data.',
 }
 
-const LAST_UPDATED = 'May 2025'
-const CONTACT_EMAIL = 'privacy@solcycle.app'
+const LAST_UPDATED = 'August 2026'
 const MIN_AGE = 13
 
 export default function PrivacyPage() {
+  // h-dvh with an inner scroll container, not document scroll. The iOS shell
+  // sets scrollEnabled:false on the web view so the app's own screens don't
+  // rubber-band, which also disables document scrolling — these pages were
+  // therefore stuck on their first screenful in the native build, with the
+  // rest of the policy unreachable. Scrolling <main> works in both the app and
+  // the browser, and the same build is what gets hosted publicly.
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 bg-background/90 backdrop-blur border-b border-border px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
+    <div className="flex h-dvh flex-col bg-background text-foreground">
+      <header className="shrink-0 bg-background/90 backdrop-blur border-b border-border px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Link
             href="/"
@@ -24,7 +30,8 @@ export default function PrivacyPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 pt-10 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] space-y-10">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="max-w-2xl mx-auto px-5 pt-10 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] space-y-10">
         <div>
           <h1 className="text-3xl font-semibold mb-2">Privacy Policy</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
@@ -48,7 +55,9 @@ export default function PrivacyPage() {
             <Li>Derived data — a cached cycles index and pattern summaries computed from your logs</Li>
           </ul>
           <p className="mt-3 text-sm text-muted-foreground">
-            This data never leaves your device. Sol Cycle has no servers that receive health data.
+            Sol Cycle has no servers that receive health data, and the app sends nothing anywhere.
+            The one way this data leaves your phone is a route you control: see
+            &ldquo;Device backups&rdquo; below.
           </p>
         </Section>
 
@@ -60,6 +69,35 @@ export default function PrivacyPage() {
             <Li>No data is transmitted to Sol Cycle or any third party</Li>
             <Li>No data is sold, shared, or used for advertising or profiling</Li>
           </ul>
+        </Section>
+
+        <Section title="Device backups">
+          <p className="mb-3">
+            If you back up your iPhone to iCloud or to a computer, your Sol Cycle entries are
+            included in that backup, the same as data from other apps on your phone. This is
+            handled by iOS, not by Sol Cycle — we never see it, and it goes only to your own
+            Apple account or your own computer.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Apple encrypts iCloud backups. If you would rather your cycle data were not backed
+            up at all, you can turn off backups for Sol Cycle in
+            Settings &rsaquo; [your name] &rsaquo; iCloud &rsaquo; Manage Account Storage &rsaquo;
+            Backups.
+          </p>
+        </Section>
+
+        <Section title="App lock">
+          <p>
+            Turning on app lock asks for Face&nbsp;ID, Touch&nbsp;ID, or your passcode before Sol
+            Cycle will open. It is your device that checks your face or fingerprint — Sol Cycle
+            never receives the biometric data itself, only whether the check passed.
+          </p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            To be precise about what this protects: app lock keeps other people out of the app on
+            an unlocked phone. It is not a separate layer of encryption on top of your entries.
+            The encryption protecting your data at rest is iOS&rsquo;s own, which applies whenever
+            your phone is locked with a passcode.
+          </p>
         </Section>
 
         <Section title="Analytics and diagnostics">
@@ -144,6 +182,7 @@ export default function PrivacyPage() {
             </a>
           </p>
         </Section>
+      </div>
       </main>
     </div>
   )
