@@ -5,19 +5,27 @@ import { Apple, Dumbbell, Heart, Sparkles, Coffee, Moon } from 'lucide-react'
 import { InsightCard } from './insight-card'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { getPhaseRecommendations } from '@/lib/content/phase-recommendations'
-import { getPhaseInfo } from '@/lib/calendar/cycle-calculations'
+import { useAppPreferences } from '@/lib/hooks/use-app-preferences'
 
 export function NourishScreen() {
   const { currentPhase, phaseInfo, inPMDDWindow, cycleDay } = useCycle()
-  
+  const { recommendationsEnabled, foodTrackingStyle } = useAppPreferences()
+
   const recommendations = useMemo(() => {
     return getPhaseRecommendations(currentPhase, inPMDDWindow)
   }, [currentPhase, inPMDDWindow])
+
+  // 'light' keeps the list to the few highest-value items; 'detailed' shows
+  // the full set. Settings → Nourish controls this.
+  const foods = useMemo(
+    () => (foodTrackingStyle === 'detailed' ? recommendations.foods : recommendations.foods.slice(0, 3)),
+    [recommendations.foods, foodTrackingStyle]
+  )
   
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-app-nav">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 safe-area-pt">
         <div className="px-5 py-4 max-w-md mx-auto">
           <div className="flex items-center gap-2">
             <Apple className="w-5 h-5 text-primary" />
@@ -55,7 +63,8 @@ export function NourishScreen() {
           <p>{recommendations.insight}</p>
         </InsightCard>
         
-        {/* Foods section */}
+        {/* Foods section — hidden when food recommendations are switched off */}
+        {recommendationsEnabled && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Apple className="w-5 h-5 text-accent" />
@@ -63,7 +72,7 @@ export function NourishScreen() {
           </div>
           
           <div className="space-y-3">
-            {recommendations.foods.map((food, i) => (
+            {foods.map((food, i) => (
               <div 
                 key={i}
                 className="flex items-start gap-3 p-3 bg-card rounded-xl border border-border"
@@ -79,7 +88,8 @@ export function NourishScreen() {
             ))}
           </div>
         </section>
-        
+        )}
+
         {/* Exercise section */}
         <section>
           <div className="flex items-center gap-2 mb-4">

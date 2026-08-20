@@ -2,11 +2,9 @@ import type {
   CycleLog,
   CycleHistoryEntry,
   EndoFlag,
-  EndoFlagPattern,
   PainLocation,
-} from '@/lib/types'
-import { detectPeriodStartDates } from '@/lib/storage/cycle-storage'
-import { getCycleDayFromDate } from './cycle-calculations'
+} from'@/lib/types'
+import { buildCycleIndex, logsInCycle, type AnnotatedLog, type CycleIndex } from './cycle-index'
 
 /**
  * Deterministic soft heuristics for endometriosis-adjacent pain patterns.
@@ -19,52 +17,15 @@ import { getCycleDayFromDate } from './cycle-calculations'
  */
 
 const BOWEL_BLADDER_LOCATIONS: PainLocation[] = ['Bowel', 'Bladder']
-const DEEP_PELVIC_LOCATIONS: PainLocation[] = ['Pelvic', 'Ovary - left', 'Ovary - right']
 
 const MIN_CYCLES = 2
 
-type LogWithCycleDay = CycleLog & { cycleDay: number; cycleStart: string }
 
-function annotateLogs(
-  logs: CycleLog[],
-  cyclesIndex: CycleHistoryEntry[]
-): LogWithCycleDay[] {
-  const periodStarts = cyclesIndex.map(c => c.startDate)
-  const annotated: LogWithCycleDay[] = []
-  for (const log of logs) {
-    const cd = getCycleDayFromDate(log.date, periodStarts)
-    if (cd === null) continue
-    const target = new Date(log.date).getTime()
-    // Find nearest cycle start ≤ this log.
-    let cycleStart = periodStarts[0]
-    for (const s of periodStarts) {
-      if (new Date(s).getTime() <= target) cycleStart = s
-      else break
-    }
-    annotated.push({ ...log, cycleDay: cd, cycleStart })
-  }
-  return annotated
-}
 
-/** Is this log day during an active bleeding window for its cycle? */
-function isDuringBleeding(
-  log: CycleLog,
-  cycleDay: number,
-  cycleStart: string,
-  cyclesIndex: CycleHistoryEntry[]
-): boolean {
-  const cycle = cyclesIndex.find(c => c.startDate === cycleStart)
-  const periodLen = 7 // conservative upper bound; no periodLength on index entries
-  return (
-    cycleDay <= periodLen &&
-    log.flow !== 'none' &&
-    log.flow !== undefined
-  )
-}
 
 /** Check: high pain (≥7) recurring across ≥2 completed cycles. */
 function checkHighPainRecurring(
-  annotated: LogWithCycleDay[],
+  annotated: AnnotatedLog[],
   completed: CycleHistoryEntry[]
 ): EndoFlag | null {
   if (completed.length < MIN_CYCLES) return null
@@ -91,7 +52,7 @@ function checkHighPainRecurring(
 
 /** Check: pain logged on days without active flow (pain outside bleeding). */
 function checkPainOutsideBleeding(
-  annotated: LogWithCycleDay[],
+  annotated: AnnotatedLog[],
   completed: CycleHistoryEntry[]
 ): EndoFlag | null {
   if (completed.length < MIN_CYCLES) return null
@@ -124,23 +85,15 @@ function checkPainOutsideBleeding(
 
 /** Check: bleeding duration > 7 days across ≥2 completed cycles. */
 function checkLongBleeding(
-  logs: CycleLog[],
-  cyclesIndex: CycleHistoryEntry[]
+  index: CycleIndex,
+  completed: CycleHistoryEntry[]
 ): EndoFlag | null {
-  const completed = cyclesIndex.filter(c => c.length > 0)
   if (completed.length < MIN_CYCLES) return null
 
-  const periodStarts = cyclesIndex.map(c => c.startDate)
   const longCycles = new Set<string>()
 
   for (const cycle of completed) {
-    const cycleLogs = logs.filter(l => {
-      const t = new Date(l.date).getTime()
-      const start = new Date(cycle.startDate).getTime()
-      const end = start + cycle.length * 86400000
-      return t >= start && t < end
-    })
-    const bleedingDays = cycleLogs.filter(
+    const bleedingDays = logsInCycle(index, cycle.startDate).filter(
       l => l.flow !== 'none' && l.flow !== undefined
     ).length
     if (bleedingDays > 7) longCycles.add(cycle.startDate)
@@ -162,7 +115,7 @@ function checkLongBleeding(
 
 /** Check: bowel or bladder pain locations logged during cycle phase across ≥2 cycles. */
 function checkBowelBladderPain(
-  annotated: LogWithCycleDay[],
+  annotated: AnnotatedLog[],
   completed: CycleHistoryEntry[]
 ): EndoFlag | null {
   if (completed.length < MIN_CYCLES) return null
@@ -200,7 +153,9 @@ export function computeEndoFlags(
   cyclesIndex: CycleHistoryEntry[]
 ): EndoFlag[] {
   const completed = cyclesIndex.filter(c => c.length > 0)
-  const annotated = annotateLogs(logs, cyclesIndex)
+  // One shared pass instead of each check re-deriving cycle membership.
+  const index = buildCycleIndex(logs, cyclesIndex)
+  const annotated = index.annotated
   const flags: EndoFlag[] = []
 
   const high = checkHighPainRecurring(annotated, completed)
@@ -209,7 +164,7 @@ export function computeEndoFlags(
   const outside = checkPainOutsideBleeding(annotated, completed)
   if (outside) flags.push(outside)
 
-  const long = checkLongBleeding(logs, cyclesIndex)
+  const long = checkLongBleeding(index, completed)
   if (long) flags.push(long)
 
   const bb = checkBowelBladderPain(annotated, completed)

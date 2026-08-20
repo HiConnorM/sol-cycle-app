@@ -13,9 +13,26 @@ A local-first cycle and symptom tracker built as a web app, preparing for iOS pa
 ```bash
 pnpm install
 pnpm dev          # dev server at http://localhost:3000
-pnpm build        # static export to /out (required for Capacitor)
-pnpm test         # run the prediction engine unit tests
+pnpm build        # static export to /out (bundled into the iOS app)
+pnpm test         # unit tests (runs under TZ=America/Los_Angeles)
+pnpm test:tz      # the same suite across six timezones, UTC-8 to UTC+14
+pnpm typecheck    # tsc --noEmit
 ```
+
+### iOS
+
+```bash
+pnpm ios:assets   # regenerate the app icon and splash from public/icon-512.png
+pnpm ios:sync     # build the web export and copy it into the Xcode project
+pnpm ios:open     # open ios/App/App.xcodeproj in Xcode
+```
+
+> **Node 22+ is required for the Capacitor CLI.** If `nvm` puts an older
+> version first on your `PATH`, prefix the iOS commands:
+> `PATH=/usr/local/bin:$PATH pnpm ios:sync`
+
+The first `xcodebuild` run downloads the Capacitor binary xcframeworks from
+GitHub releases and can take several minutes with no output. It is not hung.
 
 ---
 
@@ -88,17 +105,30 @@ See [`docs/prediction-engine.md`](docs/prediction-engine.md) for the full spec.
 
 ## iOS launch checklist
 
-- [ ] Capacitor wrapper set up (`pnpm add @capacitor/core @capacitor/cli @capacitor/ios`)
-- [ ] Static export configured (`output: 'export'` in `next.config.mjs`)
-- [ ] iOS simulator runtime installed in Xcode
-- [ ] Biometric lock (Face ID / Touch ID) wired via Capacitor plugin
+Done:
+
+- [x] Capacitor wrapper set up — `capacitor.config.ts`, native project in `ios/`
+- [x] Static export configured (`output: 'export'` in `next.config.mjs`)
+- [x] iOS simulator runtime installed in Xcode
+- [x] Biometric lock wired to a native Face ID / Touch ID plugin, with the
+      WebAuthn implementation kept as the web fallback (`lib/biometric/`)
+- [x] Safe-area insets applied to every screen header, bottom nav and overlay
+- [x] 1024×1024 App Store icon, no alpha channel (`pnpm ios:assets`)
+- [x] `NSFaceIDUsageDescription` and `ITSAppUsesNonExemptEncryption` in Info.plist
+- [x] Portrait-only orientation, `arm64` device capability
+- [x] Reduce Motion honoured for both CSS and framer-motion animations
+- [x] No analytics, telemetry, or third-party SDKs — the privacy policy says so
+      and it is now literally true
+
+Still to do:
+
+- [ ] Apple Developer account + real bundle ID (currently `app.solcycle`)
+- [ ] Signing team and provisioning profile set in Xcode
 - [ ] Push notifications wired (period reminders, phase change alerts)
 - [ ] Hosted privacy policy URL added to App Store Connect
-- [ ] Safe area insets audited on iPhone with Dynamic Island, notch, and SE
-- [ ] Dark mode QA pass on real device
+- [ ] Dark mode QA pass on a real device
 - [ ] VoiceOver accessibility audit
 - [ ] App Store screenshots (6.7", 6.5", 5.5")
-- [ ] 1024×1024 App Store icon (no alpha channel)
 - [ ] App Privacy nutrition label completed in App Store Connect
 - [ ] Medical disclaimer in App Store long description
 
@@ -107,11 +137,22 @@ See [`docs/prediction-engine.md`](docs/prediction-engine.md) for the full spec.
 ## Running tests
 
 ```bash
-pnpm test          # run once
+pnpm test          # run once, under TZ=America/Los_Angeles
 pnpm test:watch    # watch mode
+pnpm test:tz       # the whole suite across six timezones
 ```
 
-Tests live in `lib/calendar/__tests__/engine.test.ts` and cover the prediction engine, PMDD profile, and endo-flag heuristics.
+| Suite | Covers |
+| --- | --- |
+| `lib/calendar/__tests__/engine.test.ts` | prediction engine, PMDD profile, endo-flag heuristics |
+| `lib/utils/__tests__/date-keys.test.ts` | local-date handling, DST boundaries, UTC-drift regressions |
+| `lib/storage/__tests__/cycle-storage.test.ts` | log CRUD, cycles index, migration, `clearAllData` completeness, change notification |
+| `lib/storage/__tests__/tasks-storage.test.ts` | task CRUD and recurrence rollover |
+
+The default timezone is deliberately **not** UTC. A whole class of bug in this
+app — logs filed under the wrong calendar day — is invisible when the tests run
+at UTC+0, so the suite runs west of it by default and `pnpm test:tz` sweeps both
+directions.
 
 ---
 

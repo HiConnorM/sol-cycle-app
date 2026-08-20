@@ -15,6 +15,13 @@ node_modules
 .next/
 .DS_Store
 
+# Next.js static export — rebuilt by `pnpm build`, bundled into the iOS app by
+# `npx cap sync ios`. Never edit or commit.
+/out/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Claude local memory — never commit
 .claude/
 

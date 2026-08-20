@@ -1,8 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { CalendarSystem, IFCDate, MoonPhaseData } from '@/lib/types'
-import { getUserPreferences, saveUserPreferences } from '@/lib/storage/cycle-storage'
+import { useState, useCallback, useMemo, useSyncExternalStore } from 'react'
+import type { CalendarSystem, MoonPhaseData } from'@/lib/types'
+import {
+  getUserPreferences,
+  saveUserPreferences,
+  subscribeToCycleData,
+} from '@/lib/storage/cycle-storage'
+import { useHydrated, useNow } from './use-hydration'
 import { gregorianToIFC, formatIFCDate, formatGregorianDate } from '@/lib/calendar/international-fixed-calendar'
 import { getMoonPhase } from '@/lib/calendar/moon-phases'
 
@@ -16,61 +21,54 @@ const DEFAULT_MOON_DATA: MoonPhaseData = {
   name: 'Waxing Crescent',
 }
 
+/** The calendar system is stored, so it's read straight from the store. */
+function getCalendarSystem(): CalendarSystem {
+  return getUserPreferences().calendarSystem
+}
+
+function getServerCalendarSystem(): CalendarSystem {
+  return 'gregorian'
+}
+
 export function useCalendar() {
-  // Always start with stable defaults for SSR
-  const [currentDate, setCurrentDate] = useState(STABLE_DEFAULT_DATE)
-  const [calendarSystem, setCalendarSystem] = useState<CalendarSystem>('gregorian')
-  const [isLoading, setIsLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
-  const [moonPhase, setMoonPhase] = useState<MoonPhaseData>(DEFAULT_MOON_DATA)
-  
-  // Initialize on mount with actual current date - wrapped in requestAnimationFrame 
-  // to ensure it happens after hydration is complete
-  useEffect(() => {
-    // Use requestAnimationFrame to ensure state updates happen after React hydration
-    requestAnimationFrame(() => {
-      setMounted(true)
-      const now = new Date()
-      setCurrentDate(now)
-      setMoonPhase(getMoonPhase(now))
-      
-      const prefs = getUserPreferences()
-      setCalendarSystem(prefs.calendarSystem)
-      setIsLoading(false)
-    })
-  }, [])
-  
-  // Update moon phase when date changes (client-side only)
-  useEffect(() => {
-    if (mounted) {
-      setMoonPhase(getMoonPhase(currentDate))
-    }
-  }, [currentDate, mounted])
-  
-  // Update current date every minute (client-side only)
-  useEffect(() => {
-    if (!mounted) return
-    
-    const interval = setInterval(() => {
-      setCurrentDate(new Date())
-    }, 60000)
-    
-    return () => clearInterval(interval)
-  }, [mounted])
-  
+  // A user-navigable date, when the user has moved off "now".
+  const [pinnedDate, setPinnedDate] = useState<Date | null>(null)
+
+  // Ticks once a minute; STABLE_DEFAULT_DATE during SSR and hydration so the
+  // server and client markup agree.
+  const now = useNow(STABLE_DEFAULT_DATE)
+  const currentDate = pinnedDate ?? now
+
+  const calendarSystem = useSyncExternalStore(
+    subscribeToCycleData,
+    getCalendarSystem,
+    getServerCalendarSystem
+  )
+
+  const hydrated = useHydrated()
+
+  // Derived, not stored: recomputing is far cheaper than an effect + setState.
+  const moonPhase: MoonPhaseData = useMemo(
+    () => (hydrated ? getMoonPhase(currentDate) : DEFAULT_MOON_DATA),
+    [hydrated, currentDate]
+  )
+
+  const isLoading = !hydrated
+
   // IFC date conversion
   const ifcDate = useMemo(() => gregorianToIFC(currentDate), [currentDate])
-  
-  // Toggle calendar system
+
+  // Toggle calendar system — the store notifies every subscriber, so no
+  // local state to keep in step.
   const toggleCalendarSystem = useCallback(() => {
-    const newSystem = calendarSystem === 'gregorian' ? 'international-fixed' : 'gregorian'
-    setCalendarSystem(newSystem)
-    saveUserPreferences({ calendarSystem: newSystem })
-  }, [calendarSystem])
-  
+    saveUserPreferences({
+      calendarSystem:
+        getCalendarSystem() === 'gregorian' ? 'international-fixed' : 'gregorian',
+    })
+  }, [])
+
   // Set specific calendar system
   const setSystem = useCallback((system: CalendarSystem) => {
-    setCalendarSystem(system)
     saveUserPreferences({ calendarSystem: system })
   }, [])
   
@@ -84,26 +82,30 @@ export function useCalendar() {
   
   // Navigate to specific date
   const goToDate = useCallback((date: Date) => {
-    setCurrentDate(date)
+    setPinnedDate(date)
   }, [])
-  
+
   // Navigate by offset (days)
   const navigateByDays = useCallback((days: number) => {
-    const newDate = new Date(currentDate)
-    newDate.setDate(newDate.getDate() + days)
-    setCurrentDate(newDate)
-  }, [currentDate])
-  
+    setPinnedDate(prev => {
+      const next = new Date(prev ?? new Date())
+      next.setDate(next.getDate() + days)
+      return next
+    })
+  }, [])
+
   // Navigate by months
   const navigateByMonths = useCallback((months: number) => {
-    const newDate = new Date(currentDate)
-    newDate.setMonth(newDate.getMonth() + months)
-    setCurrentDate(newDate)
-  }, [currentDate])
-  
-  // Go to today
+    setPinnedDate(prev => {
+      const next = new Date(prev ?? new Date())
+      next.setMonth(next.getMonth() + months)
+      return next
+    })
+  }, [])
+
+  // Go to today — unpin and follow the clock again.
   const goToToday = useCallback(() => {
-    setCurrentDate(new Date())
+    setPinnedDate(null)
   }, [])
   
   return {

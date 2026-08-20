@@ -1,4 +1,5 @@
-import type { IFCDate, GregorianDate } from '@/lib/types'
+import type { IFCDate } from '@/lib/types'
+import { addDays, daysBetween } from '@/lib/utils/date-keys'
 
 // IFC Month names
 export const IFC_MONTHS = [
@@ -41,13 +42,16 @@ export function isLeapYear(year: number): boolean {
 }
 
 /**
- * Get the day of year (1-366) for a given date
+ * Get the day of year (1-366) for a given date.
+ *
+ * Counted in whole local days rather than by dividing a millisecond span: a
+ * DST transition makes one local day 23 or 25 hours long, and the old
+ * millisecond arithmetic then floored to the wrong day for every date after
+ * the transition — shifting the entire second half of the year by one day.
  */
 export function getDayOfYear(date: Date): number {
-  const start = new Date(date.getFullYear(), 0, 0)
-  const diff = date.getTime() - start.getTime()
-  const oneDay = 1000 * 60 * 60 * 24
-  return Math.floor(diff / oneDay)
+  const startOfYear = new Date(date.getFullYear(), 0, 1)
+  return daysBetween(startOfYear, date) + 1
 }
 
 /**
@@ -63,8 +67,10 @@ export function gregorianToIFC(date: Date): IFCDate {
   const dayOfYear = getDayOfYear(date)
   const isLeap = isLeapYear(year)
   
-  // Handle Year Day (December 29 in IFC, last day of year)
-  if (dayOfYear === 365 || (isLeap && dayOfYear === 366)) {
+  // Handle Year Day — the final day of the year, belonging to no month or
+  // week. It is day 365 in a common year and day 366 in a leap year; the old
+  // `dayOfYear === 365 || ...` also caught 30 December in leap years.
+  if (dayOfYear === (isLeap ? 366 : 365)) {
     return {
       year,
       month: 13,
@@ -117,7 +123,7 @@ export function ifcToGregorian(ifcDate: IFCDate): Date {
   
   // Handle Year Day
   if (isYearDay) {
-    return new Date(year, 11, 31) // December 31
+    return new Date(year, 11, 31) // 31 December — the last day either way
   }
   
   // Handle Leap Day
@@ -134,16 +140,14 @@ export function ifcToGregorian(ifcDate: IFCDate): Date {
     dayOfYear += 1
   }
   
-  // Convert day of year to date
-  const date = new Date(year, 0, 1)
-  date.setDate(dayOfYear)
-  return date
+  // Convert day of year to a date at local midnight.
+  return addDays(new Date(year, 0, 1), dayOfYear - 1)
 }
 
 /**
  * Get all IFC month data for a given year
  */
-export function getIFCMonths(year: number): Array<{ name: string; number: number; days: number }> {
+export function getIFCMonths(_year: number): Array<{ name: string; number: number; days: number }> {
   return IFC_MONTH_NAMES.map((name, index) => ({
     name,
     number: index + 1,

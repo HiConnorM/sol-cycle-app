@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { TodayScreen } from '@/components/sol-cycle/today-screen'
 import { ReportsScreen } from '@/components/sol-cycle/reports-screen'
 import { LogSheet } from '@/components/sol-cycle/log-sheet'
@@ -13,25 +13,27 @@ import { PrivacyConsent, isPrivacyAccepted } from '@/components/sol-cycle/privac
 import { BiometricLockScreen } from '@/components/sol-cycle/biometric-lock-screen'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useBiometricLock } from '@/lib/hooks/use-biometric-lock'
+import { toDateKey } from '@/lib/utils/date-keys'
+import { useHydrated } from '@/lib/hooks/use-hydration'
 
 export default function SolCycleApp() {
   const [activeTab, setActiveTab] = useState<NavTab>('today')
   const [isLogOpen, setIsLogOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [showPrivacy, setShowPrivacy] = useState(false)
-  const [showOnboarding, setShowOnboarding] = useState(false)
+  // Set when the user finishes each gate in this session; the persisted flags
+  // are the source of truth on later launches.
+  const [privacyDone, setPrivacyDone] = useState(false)
+  const [onboardingDone, setOnboardingDone] = useState(false)
   const { logDay, getLogForDate } = useCycle()
   const { isEnabled: biometricEnabled, isLocked, isAuthenticating, authError, unlock } = useBiometricLock()
 
-  // Privacy gate → onboarding gate, checked once on mount (client-only)
-  useEffect(() => {
-    if (!isPrivacyAccepted()) {
-      setShowPrivacy(true)
-    } else if (!isOnboardingComplete()) {
-      setShowOnboarding(true)
-    }
-  }, [])
+  // Both gates read localStorage, so they can only be evaluated after
+  // hydration — the static shell has no idea whether this user has consented.
+  const hydrated = useHydrated()
+  const showPrivacy = hydrated && !privacyDone && !isPrivacyAccepted()
+  const showOnboarding =
+    hydrated && !showPrivacy && !onboardingDone && !isOnboardingComplete()
   
   // Handle tab changes
   const handleTabChange = (tab: NavTab) => {
@@ -50,7 +52,8 @@ export default function SolCycleApp() {
   }
   
   // Get existing log for selected date
-  const existingLog = getLogForDate(selectedDate.toISOString().split('T')[0])
+  const selectedDateKey = toDateKey(selectedDate)
+  const existingLog = getLogForDate(selectedDateKey)
   
   return (
     <div className="min-h-screen bg-background">
@@ -66,16 +69,13 @@ export default function SolCycleApp() {
       {/* Privacy consent — shown before onboarding on first launch */}
       {showPrivacy && (
         <PrivacyConsent
-          onAccept={() => {
-            setShowPrivacy(false)
-            if (!isOnboardingComplete()) setShowOnboarding(true)
-          }}
+          onAccept={() => setPrivacyDone(true)}
         />
       )}
 
       {/* Onboarding — shown after privacy consent on first launch */}
-      {!showPrivacy && showOnboarding && (
-        <Onboarding onComplete={() => setShowOnboarding(false)} />
+      {showOnboarding && (
+        <Onboarding onComplete={() => setOnboardingDone(true)} />
       )}
 
       {/* Side Menu */}
@@ -97,7 +97,10 @@ export default function SolCycleApp() {
       />
       
       {/* Log sheet */}
+      {/* Keyed by date: selecting another day remounts the sheet with that
+          day's values instead of an effect resetting every field. */}
       <LogSheet
+        key={selectedDateKey}
         isOpen={isLogOpen}
         onClose={() => setIsLogOpen(false)}
         date={selectedDate}

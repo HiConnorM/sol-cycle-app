@@ -175,8 +175,8 @@ export function getPhaseRecommendations(
     return recommendations
   }
   
-  // Remove PMDD support if not in window
-  const { pmddSupport, ...rest } = recommendations
+  // Destructure-to-omit: `pmddSupport` is pulled out only so `rest` excludes it.
+  const { pmddSupport: _pmddSupport, ...rest } = recommendations
   return inPMDDWindow ? recommendations : rest
 }
 

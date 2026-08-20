@@ -4,7 +4,8 @@ import type {
   CyclePhase,
   SymptomPattern,
 } from '@/lib/types'
-import { getCyclePhase, getCycleDayFromDate } from './cycle-calculations'
+import { getCyclePhase } from './cycle-calculations'
+import { buildCycleIndex } from './cycle-index'
 
 /**
  * Pure-function module for personal symptom-timing patterns.
@@ -30,24 +31,21 @@ export function buildSymptomEvents(
   cyclesIndex: CycleHistoryEntry[]
 ): SymptomEvent[] {
   if (cyclesIndex.length === 0) return []
-  const periodStarts = cyclesIndex.map(c => c.startDate)
+
+  // Cycle membership comes from the shared index — one sorted walk rather than
+  // a scan of every period start for every log.
+  const { annotated } = buildCycleIndex(logs, cyclesIndex)
 
   const events: SymptomEvent[] = []
-  for (const log of logs) {
+  for (const log of annotated) {
     if (!log.symptoms || log.symptoms.length === 0) continue
-    const cycleDay = getCycleDayFromDate(log.date, periodStarts)
-    if (cycleDay === null) continue
-
-    // Find which cycle this log belongs to (latest start <= log date).
-    const target = new Date(log.date).getTime()
-    let cycleStart = periodStarts[0]
-    for (const s of periodStarts) {
-      if (new Date(s).getTime() <= target) cycleStart = s
-      else break
-    }
-
     for (const symptom of log.symptoms) {
-      events.push({ symptom, date: log.date, cycleDay, cycleStartDate: cycleStart })
+      events.push({
+        symptom,
+        date: log.date,
+        cycleDay: log.cycleDay,
+        cycleStartDate: log.cycleStart,
+      })
     }
   }
   return events

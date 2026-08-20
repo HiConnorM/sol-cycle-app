@@ -5,7 +5,6 @@ import {
   Sparkles, 
   Heart, 
   BookOpen, 
-  Users, 
   AlertCircle,
   ChevronRight,
   ExternalLink,
@@ -15,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { InsightCard } from './insight-card'
 
-type TabType = 'pmdd' | 'articles' | 'community' | 'resources'
+type TabType = 'pmdd' | 'articles' | 'resources'
 
 interface Article {
   id: string
@@ -92,19 +91,18 @@ const CRISIS_RESOURCES = [
 
 export function InsightsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('pmdd')
-  const { inPMDDWindow, currentPhase, cycleDay } = useCycle()
+  const { inPMDDWindow, cycleDay } = useCycle()
   
   const tabs: { id: TabType; label: string; icon: typeof Sparkles }[] = [
     { id: 'pmdd', label: 'PMDD', icon: Heart },
     { id: 'articles', label: 'Articles', icon: BookOpen },
-    { id: 'community', label: 'Community', icon: Users },
     { id: 'resources', label: 'Resources', icon: Sparkles },
   ]
   
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-app-nav">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 safe-area-pt">
         <div className="px-5 py-4 max-w-md mx-auto">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -153,7 +151,7 @@ export function InsightsScreen() {
                   <h3 className="font-semibold text-foreground">Sensitive window active</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  You're in the pre-period phase when emotional and physical symptoms
+                  You&apos;re in the pre-period phase when emotional and physical symptoms
                   often feel more intense. Be extra gentle with yourself.
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -295,38 +293,6 @@ export function InsightsScreen() {
         )}
         
         {/* Community Tab */}
-        {activeTab === 'community' && (
-          <div className="space-y-6">
-            <InsightCard title="Join the Community" icon={<Users className="w-4 h-4" />}>
-              <p className="mb-4">
-                Connect with others who understand what you're going through. 
-                Share experiences, tips, and support.
-              </p>
-              <button className="w-full py-2.5 rounded-full bg-primary text-primary-foreground font-medium">
-                Coming Soon
-              </button>
-            </InsightCard>
-            
-            <div className="p-4 bg-secondary/50 rounded-2xl">
-              <h3 className="font-semibold text-foreground mb-3">Community Guidelines</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Be kind and supportive</li>
-                <li>• Share your experiences, not medical advice</li>
-                <li>• Respect privacy and confidentiality</li>
-                <li>• Report harmful content</li>
-              </ul>
-            </div>
-            
-            <InsightCard title="Share Your Story" variant="subtle">
-              <p>
-                Your experience matters. Consider sharing what helps you manage 
-                your cycle to help others in the community.
-              </p>
-            </InsightCard>
-          </div>
-        )}
-        
-        {/* Resources Tab */}
         {activeTab === 'resources' && (
           <div className="space-y-4">
             <InsightCard title="Helpful Resources" icon={<ExternalLink className="w-4 h-4" />}>
@@ -378,10 +344,10 @@ export function InsightsScreen() {
             <div className="p-4 bg-secondary/50 rounded-2xl mt-6">
               <h3 className="font-semibold text-foreground mb-2">Books We Recommend</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• "In the FLO" by Alisa Vitti</li>
-                <li>• "Period Power" by Maisie Hill</li>
-                <li>• "The Fifth Vital Sign" by Lisa Hendrickson-Jack</li>
-                <li>• "Wild Power" by Alexandra Pope & Sjanie Hugo Wurlitzer</li>
+                <li>• &quot;In the FLO&quot; by Alisa Vitti</li>
+                <li>• &quot;Period Power&quot; by Maisie Hill</li>
+                <li>• &quot;The Fifth Vital Sign&quot; by Lisa Hendrickson-Jack</li>
+                <li>• &quot;Wild Power&quot; by Alexandra Pope & Sjanie Hugo Wurlitzer</li>
               </ul>
             </div>
           </div>

@@ -1,18 +1,17 @@
-import type { CyclePhase, CycleSettings } from '@/lib/types'
+import type { CyclePhase } from'@/lib/types'
+import { addDays, daysBetween, fromDateKey, isValidDateKey, toDateKey } from '@/lib/utils/date-keys'
 
 /**
- * Calculate the current cycle day based on last period start
+ * Calculate the current cycle day based on last period start.
+ *
+ * Both ends are normalised to local midnight, so the cycle day turns over at
+ * the user's midnight rather than at the UTC offset boundary.
  */
 export function getCurrentCycleDay(lastPeriodStart: string | null): number | null {
-  if (!lastPeriodStart) return null
-  
-  const start = new Date(lastPeriodStart)
-  const today = new Date()
-  const diffTime = today.getTime() - start.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-  
-  // Return cycle day (1-indexed)
-  return diffDays + 1
+  if (!lastPeriodStart || !isValidDateKey(lastPeriodStart)) return null
+
+  // Day 1 is the period start itself, hence the +1.
+  return daysBetween(fromDateKey(lastPeriodStart), new Date()) + 1
 }
 
 /**
@@ -97,11 +96,9 @@ export function predictNextPeriod(
 ): Date | null {
   if (!lastPeriodStart) return null
   
-  const start = new Date(lastPeriodStart)
-  const nextPeriod = new Date(start)
-  nextPeriod.setDate(nextPeriod.getDate() + cycleLength)
-  
-  return nextPeriod
+  if (!isValidDateKey(lastPeriodStart)) return null
+
+  return addDays(fromDateKey(lastPeriodStart), cycleLength)
 }
 
 /**
@@ -139,24 +136,24 @@ export function getCycleDayFromDate(
 ): number | null {
   if (!periodStarts || periodStarts.length === 0) return null
 
-  const target =
-    typeof date === 'string' ? new Date(date).getTime() : date.getTime()
+  // Work in date keys throughout: a Date argument is reduced to the local
+  // calendar day it falls on, so a 6pm log and a 9am log on the same day give
+  // the same cycle day.
+  const target = typeof date === 'string' ? date : toDateKey(date)
+  if (!isValidDateKey(target)) return null
 
-  // Sort ascending and find latest start that is <= target.
-  const sorted = [...periodStarts]
-    .map(s => new Date(s).getTime())
-    .filter(t => !isNaN(t))
-    .sort((a, b) => a - b)
+  // Zero-padded keys compare lexically; find the latest start at or before target.
+  const sorted = [...periodStarts].filter(isValidDateKey).sort()
 
-  let mostRecent: number | null = null
-  for (const t of sorted) {
-    if (t <= target) mostRecent = t
+  let mostRecent: string | null = null
+  for (const s of sorted) {
+    if (s <= target) mostRecent = s
     else break
   }
   if (mostRecent === null) return null
 
-  const days = Math.floor((target - mostRecent) / (1000 * 60 * 60 * 24))
-  return days + 1
+  // Day 1 is the period start itself.
+  return daysBetween(fromDateKey(mostRecent), fromDateKey(target)) + 1
 }
 
 /**

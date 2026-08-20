@@ -13,11 +13,10 @@ import {
   Zap,
   Battery,
   Info,
-  ChevronRight,
   TrendingDown,
   Minus,
   MessageSquare,
-} from 'lucide-react'
+} from'lucide-react'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useCalendar } from '@/lib/hooks/use-calendar'
 import {
@@ -54,7 +53,7 @@ function InsightIcon({ icon, type }: { icon: string; type: PatternInsight['type'
 }
 
 export function ReportsScreen() {
-  const { cycleDay, settings, logs, currentPhase, phaseInfo, inPMDDWindow, prediction, symptomPatterns, pmddProfile, endoFlags } = useCycle()
+  const { cycleDay, settings, logs, phaseInfo, inPMDDWindow, prediction, symptomPatterns, pmddProfile, endoFlags } = useCycle()
   const { currentDate } = useCalendar()
 
   // Insights use the hook's prediction + correct symptom patterns (no array-index bug)
@@ -101,9 +100,9 @@ export function ReportsScreen() {
   }, [logs])
   
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-app-nav">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 safe-area-pt">
         <div className="px-5 py-4 max-w-md mx-auto">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />

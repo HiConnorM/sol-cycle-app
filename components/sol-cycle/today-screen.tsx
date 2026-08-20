@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { Sun, Moon, Sparkles, Heart, Utensils, Dumbbell, Menu } from 'lucide-react'
 import { LivingWheel } from './living-wheel'
 import { InsightCard } from './insight-card'
@@ -9,6 +9,7 @@ import { PredictionExplainer } from './prediction-explainer'
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useTasks } from '@/lib/hooks/use-tasks'
 import { useCalendar } from '@/lib/hooks/use-calendar'
+import { useHydrated } from '@/lib/hooks/use-hydration'
 import { getPhaseRecommendations } from '@/lib/content/phase-recommendations'
 
 interface TodayScreenProps {
@@ -18,14 +19,9 @@ interface TodayScreenProps {
 
 export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
   const { cycleDay, currentPhase, phaseInfo, daysUntil, inPMDDWindow, prediction, pmddProfile, settings, logs } = useCycle()
-  const { tasks, toggleTask, addTask, tasksByFrequency } = useTasks()
+  const { toggleTask, addTask, tasksByFrequency } = useTasks()
   const { currentDate, calendarSystem, toggleCalendarSystem, moonPhase } = useCalendar()
-  const [mounted, setMounted] = useState(false)
-  
-  // Track mount state for hydration-safe rendering
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useHydrated()
   
   const recommendations = useMemo(() => {
     return getPhaseRecommendations(currentPhase, inPMDDWindow)
@@ -34,15 +30,15 @@ export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
   const dailyTasks = tasksByFrequency('daily')
   const weeklyTasks = tasksByFrequency('weekly')
   
-  // Greeting based on time of day - only calculate on client
-  const [greeting, setGreeting] = useState('Welcome')
-  
-  useEffect(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) setGreeting('Good morning')
-    else if (hour < 17) setGreeting('Good afternoon')
-    else setGreeting('Good evening')
-  }, [])
+  // Greeting derived from the ticking clock rather than set once in an
+  // effect, so it stays correct if the app is left open across noon or 5pm.
+  const greeting = useMemo(() => {
+    if (!mounted) return 'Welcome'
+    const hour = currentDate.getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }, [mounted, currentDate])
   
   // Status text — uses range when confidence is low/learning
   const statusText = useMemo(() => {
@@ -60,9 +56,9 @@ export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
   }, [cycleDay, daysUntil, inPMDDWindow, phaseInfo, prediction, pmddProfile])
   
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-app-nav">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 safe-area-pt">
         <div className="flex items-center justify-between px-5 py-4 max-w-md mx-auto">
           <div>
             <div className="flex items-center gap-2">
@@ -234,7 +230,7 @@ export function TodayScreen({ onDateSelect, onMenuOpen }: TodayScreenProps) {
         
         {/* Tasks Section */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground">Today's Tasks</h2>
+          <h2 className="text-lg font-semibold text-foreground">Today&apos;s Tasks</h2>
           
           <div className="grid gap-4">
             <TaskCard

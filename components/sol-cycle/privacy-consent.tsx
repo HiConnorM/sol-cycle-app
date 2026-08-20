@@ -54,7 +54,7 @@ export function PrivacyConsent({ onAccept }: PrivacyConsentProps) {
             {
               icon: <Lock className="w-5 h-5 text-[#BFD8C2]" />,
               title: 'Your data stays on your device',
-              body: "Cycle logs, symptoms, moods, and settings are stored only in your browser's local storage. Nothing is sent to any server.",
+              body: 'Cycle logs, symptoms, moods, and settings are stored only on this device. Nothing is sent to any server.',
             },
             {
               icon: <Trash2 className="w-5 h-5 text-[#E6B8A2]" />,

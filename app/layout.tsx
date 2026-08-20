@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { PWARegister } from '@/components/pwa-register'
+import { MotionConfigProvider } from '@/components/motion-config-provider'
+import { NativeShell } from '@/components/native-shell'
 import './globals.css'
 
 const _geist = Geist({ subsets: ['latin'] })
@@ -10,10 +11,14 @@ const _geistMono = Geist_Mono({ subsets: ['latin'] })
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#FFFEF8',
   viewportFit: 'cover',
+  // Matches --background in globals.css for light and dark, so the iOS status
+  // bar and PWA chrome don't seam against the app surface. The runtime value is
+  // kept in step by applyTheme() when the user overrides the OS setting.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F7F5F2' },
+    { media: '(prefers-color-scheme: dark)', color: '#1A1918' },
+  ],
 }
 
 export const metadata: Metadata = {
@@ -43,14 +48,28 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the inline script below sets `class` and
+    // `color-scheme` on <html> before React hydrates, so the server markup
+    // deliberately differs from the client. The warning is expected here and
+    // only applies to this element's own attributes.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/*
+          Applies the stored theme before first paint, so a dark-mode user
+          doesn't get a flash of the light palette on every launch. Mirrors
+          lib/theme.ts — keep the two in step.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t='system';var r=localStorage.getItem('sol-cycle-preferences');if(r){var p=JSON.parse(r).theme;if(p==='light'||p==='dark'||p==='system')t=p}var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})()`,
+          }}
+        />
       </head>
       <body className="font-sans antialiased">
-        {children}
+        <MotionConfigProvider>{children}</MotionConfigProvider>
         <PWARegister />
-        <Analytics />
+        <NativeShell />
       </body>
     </html>
   )

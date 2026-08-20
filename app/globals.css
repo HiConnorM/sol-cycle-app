@@ -211,29 +211,72 @@
   }
 }
 
-/* Safe area for iOS devices (Dynamic Island / notch / home indicator) */
-.safe-area-pb {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+/* Safe area for iOS devices (Dynamic Island / notch / home indicator).
+ *
+ * These live in @layer utilities so they sit alongside Tailwind's own padding
+ * utilities in the cascade. Unlayered, they outranked every layered Tailwind
+ * rule regardless of specificity — which silently zeroed the `px-6` on the
+ * onboarding screen and made it render edge to edge.
+ *
+ * They still *replace* padding on the same side rather than adding to it, so
+ * don't combine `safe-area-pt` with `py-4` on one element. Either put them on
+ * different elements (a header wrapper and its inner row), or ask for both at
+ * once with an arbitrary value:
+ *   pt-[calc(1rem+env(safe-area-inset-top,0px))]
+ */
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-pl {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .safe-area-pr {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Bottom padding that clears the fixed bottom nav (h-16) plus the home
+     indicator, with breathing room. A flat pb-24 was 2px short of the nav on a
+     notched iPhone, so the last row of content sat under it. */
+  .pb-app-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 1.5rem);
+  }
+
+  /* Full-safe overlay: respects all four insets */
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
 }
 
-.safe-area-pt {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-.safe-area-pl {
-  padding-left: env(safe-area-inset-left, 0px);
-}
-
-.safe-area-pr {
-  padding-right: env(safe-area-inset-right, 0px);
-}
-
-/* Full-safe overlay: respects all four insets */
-.safe-area-inset {
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
+/*
+ * Astrological symbols (U+2648-U+2653) exist in neither Geist nor the iOS
+ * system UI font, so the zodiac glyph rendered as a missing-glyph box.
+ *
+ * Apple Symbols leads deliberately. Listing an emoji font first does not work:
+ * WebKit matches the family and stops there, and Apple Color Emoji renders
+ * nothing at all in the Simulator, so the glyph never fell through to a font
+ * that had it. Apple Symbols ships on iOS and macOS, covers all twelve signs,
+ * and draws them as outline glyphs that suit the app better than colour emoji.
+ */
+@layer utilities {
+  .font-symbol {
+    font-family:
+      'Apple Symbols',
+      'Segoe UI Symbol',
+      'Noto Sans Symbols 2',
+      'STIX Two Math',
+      'Arial Unicode MS',
+      sans-serif;
+  }
 }
 
 /* Custom scrollbar for Sol Cycle aesthetic */
@@ -260,9 +303,91 @@ html {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* ---------------------------------------------------------------------------
+   iOS / standalone web-view behaviour
+
+   These rules make the PWA and the WKWebView build behave like a native app
+   rather than like a page in a browser.
+   --------------------------------------------------------------------------- */
+
 /* Mobile-first touch optimizations */
 @media (hover: none) {
   button, a {
     -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* No grey flash on tap, and no long-press callout menu on app chrome. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+[role='button'],
+[role='tab'] {
+  -webkit-touch-callout: none;
+}
+
+/* Text the user might reasonably want to copy stays selectable; the rest of
+   the chrome does not, so a long press doesn't start a selection drag. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  /* Stop the whole page rubber-banding behind the fixed nav in standalone. */
+  overscroll-behavior-y: none;
+}
+
+p,
+input,
+textarea,
+[contenteditable],
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* iOS zooms the viewport when a focused field's text is under 16px. Every
+   field is pinned to at least 16px so focusing an input never shifts the
+   layout — this is why the viewport no longer needs user-scalable=no, which
+   would have blocked pinch-zoom for low-vision users. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}
+
+/* iOS renders date and time fields as a native control whose intrinsic width
+   ignores `width: 100%`, so the field spilled past the right edge of the
+   screen on the onboarding step. Dropping the native appearance and pinning
+   the box model makes them behave like ordinary inputs. */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  /* Without this the value sits hard against the left edge on iOS. */
+  display: block;
+}
+
+/* Momentum scrolling inside scroll containers. */
+.scrollbar-hide,
+[data-radix-scroll-area-viewport] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Honour the OS "reduce motion" setting — App Store accessibility guidance,
+   and framer-motion transitions are used heavily throughout the app. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

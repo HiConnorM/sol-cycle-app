@@ -10,10 +10,9 @@ import {
   analyzeCyclePatterns,
   getConfidenceTier,
   adjustPredictionWithToday,
-  generateInsights,
-} from '../cycle-predictions'
+} from'../cycle-predictions'
 import { getCycleDayFromDate } from '../cycle-calculations'
-import { buildCyclesIndex, detectPeriodStartDates } from '../../storage/cycle-storage'
+import { buildCyclesIndex } from'../../storage/cycle-storage'
 import { computeSymptomPatterns } from '../symptom-patterns'
 import { computePMDDProfile } from '../pmdd-profile'
 import { computeEndoFlags } from '../endo-flags'

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useSyncExternalStore } from 'react'
 import type { Task, TaskFrequency } from '@/lib/types'
 import {
   getTasks,
@@ -8,26 +8,31 @@ import {
   updateTask,
   deleteTask,
   toggleTaskCompletion,
-  getTasksByFrequency,
   createSampleTasks,
+  rolloverRecurringTasks,
+  subscribeToTasks,
 } from '@/lib/storage/tasks-storage'
+import { useHydrated } from './use-hydration'
+
+const SERVER_TASKS: Task[] = []
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  
-  // Load tasks on mount
+  // Same pattern as useCycle: localStorage is an external store, read through
+  // useSyncExternalStore rather than copied into state on mount.
+  const tasks = useSyncExternalStore(subscribeToTasks, getTasks, () => SERVER_TASKS)
+  const hydrated = useHydrated()
+
+  // Seed starter tasks and roll over finished recurrence periods. Both are
+  // idempotent and notify subscribers if they change anything.
   useEffect(() => {
-    // Create sample tasks if none exist
     createSampleTasks()
-    setTasks(getTasks())
-    setIsLoading(false)
+    rolloverRecurringTasks()
   }, [])
-  
-  // Refresh tasks from storage
-  const refreshTasks = useCallback(() => {
-    setTasks(getTasks())
-  }, [])
+
+  const isLoading = !hydrated
+
+  // Writers notify the store, so nothing to refresh by hand.
+  const refreshTasks = useCallback(() => {}, [])
   
   // Add a new task
   const addTask = useCallback((title: string, frequency: TaskFrequency, category: string = 'General') => {

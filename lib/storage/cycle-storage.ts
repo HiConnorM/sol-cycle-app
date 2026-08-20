@@ -5,6 +5,7 @@ import type {
   CalendarSystem,
   CycleHistoryEntry,
 } from '@/lib/types'
+import { daysBetweenKeys } from '@/lib/utils/date-keys'
 
 const STORAGE_KEYS = {
   CYCLE_LOGS: 'sol-cycle-logs',
@@ -13,6 +14,24 @@ const STORAGE_KEYS = {
   CYCLES_INDEX: 'sol-cycle-cycles-index',
   SCHEMA_VERSION: 'sol-cycle-schema-version',
 } as const
+
+/**
+ * Every localStorage key the app owns, including the ones written by feature
+ * modules rather than by this file. `clearAllData()` walks this list, so any
+ * new key must be registered here — a key left off is health data that
+ * survives "delete everything", which is exactly what the privacy promise
+ * says cannot happen.
+ */
+export const ALL_STORAGE_KEYS = [
+  ...Object.values(STORAGE_KEYS),
+  'sol-cycle-profile',            // name, PMDD / endometriosis flags, goal
+  'sol-cycle-tasks',              // ritual + task completion history
+  'sol-cycle-user',               // legacy user blob from earlier builds
+  'sol-cycle-onboarding-complete',
+  'sol-cycle-privacy-accepted',
+  'sol-cycle-biometric-enabled',
+  'sol-cycle-biometric-cred-id',
+] as const
 
 export const CURRENT_SCHEMA_VERSION = 2
 
@@ -30,6 +49,131 @@ const DEFAULT_USER_PREFERENCES: UserPreferences = {
   notificationsEnabled: false,
 }
 
+// ---------- Change notification ----------
+
+/**
+ * Every hook instance reads from localStorage into its own React state, so a
+ * write from one instance would otherwise leave the others showing stale data
+ * — and a settings write from the side menu could clobber a value the main
+ * screen still held a stale copy of. Writers publish here; readers re-read.
+ */
+type Listener = () => void
+const listeners = new Set<Listener>()
+
+export function subscribeToCycleData(listener: Listener): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+/**
+ * Parsed-value cache.
+ *
+ * Reads went straight to localStorage and JSON.parse on every call, and the
+ * hooks call them several times per render — so a user with a few years of
+ * history re-parsed their whole log on every keystroke. The cache also gives
+ * each getter a *stable reference* between writes, which is what lets the
+ * hooks use useSyncExternalStore: that API re-renders forever if the snapshot
+ * returns a fresh object each time it's called.
+ *
+ * Anything that writes must call `invalidateCache()`.
+ */
+const cache: {
+  logs: CycleLog[] | null
+  settings: CycleSettings | null
+  preferences: UserPreferences | null
+  cyclesIndex: CycleHistoryEntry[] | null
+} = { logs: null, settings: null, preferences: null, cyclesIndex: null }
+
+function invalidateCache(): void {
+  cache.logs = null
+  cache.settings = null
+  cache.preferences = null
+  cache.cyclesIndex = null
+}
+
+/** Drop cached values without notifying — for another tab's writes. */
+export function refreshFromStorage(): void {
+  invalidateCache()
+  notifyCycleDataChanged()
+}
+
+function notifyCycleDataChanged(): void {
+  for (const listener of listeners) listener()
+}
+
+/**
+ * Thrown when a write fails because the device is out of storage.
+ *
+ * Distinguished from other failures so the UI can say something true and
+ * actionable ("your device is out of space, export or delete older entries")
+ * rather than a generic error — and so a failed save is never silent, which
+ * for a tracking app means quietly losing the day the user just recorded.
+ */
+export class StorageQuotaError extends Error {
+  constructor(cause?: unknown) {
+    super('Not enough storage space available on this device')
+    this.name = 'StorageQuotaError'
+    this.cause = cause
+  }
+}
+
+function isQuotaError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'QuotaExceededError' ||
+      error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      // Safari reports a bare code in private browsing.
+      error.code === 22)
+  )
+}
+
+/** Write through to localStorage, translating a full disk into a typed error. */
+function writeItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch (error) {
+    if (isQuotaError(error)) throw new StorageQuotaError(error)
+    throw error
+  }
+}
+
+/** Stable empty results, so SSR snapshots don't churn references either. */
+const EMPTY_LOGS: CycleLog[] = []
+const EMPTY_INDEX: CycleHistoryEntry[] = []
+
+/**
+ * Parse a stored JSON array, tolerating anything that isn't one.
+ *
+ * `JSON.parse` happily returns `null`, an object, or a number for values that
+ * an interrupted write or an older build left behind — and every caller then
+ * does `.filter`/`.sort` on it and throws. A read must never throw: showing an
+ * empty week is recoverable, crashing on launch is not.
+ */
+function parseArray<T>(raw: string | null): T[] | null {
+  if (raw === null) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
+  } catch {
+    return []
+  }
+}
+
+/** Parse a stored JSON object, tolerating anything that isn't one. */
+function parseObject<T extends object>(raw: string | null): Partial<T> | null {
+  if (raw === null) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Partial<T>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
 // ---------- Schema migration ----------
 
 function getSchemaVersion(): number {
@@ -40,7 +184,7 @@ function getSchemaVersion(): number {
 
 function setSchemaVersion(v: number): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEYS.SCHEMA_VERSION, String(v))
+  writeItem(STORAGE_KEYS.SCHEMA_VERSION, String(v))
 }
 
 /**
@@ -64,31 +208,24 @@ export function migrateSchema(): void {
 export function saveCycleLog(log: CycleLog): void {
   if (typeof window === 'undefined') return
 
-  const logs = getCycleLogs()
-  const existingIndex = logs.findIndex(l => l.date === log.date)
+  // Copy rather than mutate: callers hold the cached array by reference.
+  const logs = getCycleLogs().filter(l => l.date !== log.date)
+  logs.push(log)
+  logs.sort((a, b) => a.date.localeCompare(b.date))
 
-  if (existingIndex >= 0) {
-    logs[existingIndex] = log
-  } else {
-    logs.push(log)
-  }
-
-  logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-  localStorage.setItem(STORAGE_KEYS.CYCLE_LOGS, JSON.stringify(logs))
+  writeItem(STORAGE_KEYS.CYCLE_LOGS, JSON.stringify(logs))
   // Keep derived cycles index fresh.
   recomputeCyclesIndex(logs)
+  invalidateCache()
+  notifyCycleDataChanged()
 }
 
 export function getCycleLogs(): CycleLog[] {
-  if (typeof window === 'undefined') return []
+  if (typeof window === 'undefined') return EMPTY_LOGS
+  if (cache.logs) return cache.logs
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.CYCLE_LOGS)
-    return stored ? JSON.parse(stored) : []
-  } catch {
-    return []
-  }
+  cache.logs = parseArray<CycleLog>(localStorage.getItem(STORAGE_KEYS.CYCLE_LOGS)) ?? []
+  return cache.logs
 }
 
 export function getCycleLogForDate(date: string): CycleLog | null {
@@ -97,22 +234,18 @@ export function getCycleLogForDate(date: string): CycleLog | null {
 }
 
 export function getCycleLogsInRange(startDate: string, endDate: string): CycleLog[] {
-  const logs = getCycleLogs()
-  const start = new Date(startDate).getTime()
-  const end = new Date(endDate).getTime()
-
-  return logs.filter(log => {
-    const logTime = new Date(log.date).getTime()
-    return logTime >= start && logTime <= end
-  })
+  // Date keys are zero-padded, so lexical comparison is calendar comparison.
+  return getCycleLogs().filter(log => log.date >= startDate && log.date <= endDate)
 }
 
 export function deleteCycleLog(date: string): void {
   if (typeof window === 'undefined') return
 
   const logs = getCycleLogs().filter(l => l.date !== date)
-  localStorage.setItem(STORAGE_KEYS.CYCLE_LOGS, JSON.stringify(logs))
+  writeItem(STORAGE_KEYS.CYCLE_LOGS, JSON.stringify(logs))
   recomputeCyclesIndex(logs)
+  invalidateCache()
+  notifyCycleDataChanged()
 }
 
 // ---------- Settings & preferences ----------
@@ -122,18 +255,18 @@ export function saveCycleSettings(settings: Partial<CycleSettings>): void {
 
   const current = getCycleSettings()
   const updated = { ...current, ...settings }
-  localStorage.setItem(STORAGE_KEYS.CYCLE_SETTINGS, JSON.stringify(updated))
+  writeItem(STORAGE_KEYS.CYCLE_SETTINGS, JSON.stringify(updated))
+  invalidateCache()
+  notifyCycleDataChanged()
 }
 
 export function getCycleSettings(): CycleSettings {
   if (typeof window === 'undefined') return DEFAULT_CYCLE_SETTINGS
+  if (cache.settings) return cache.settings
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.CYCLE_SETTINGS)
-    return stored ? { ...DEFAULT_CYCLE_SETTINGS, ...JSON.parse(stored) } : DEFAULT_CYCLE_SETTINGS
-  } catch {
-    return DEFAULT_CYCLE_SETTINGS
-  }
+  const stored = parseObject<CycleSettings>(localStorage.getItem(STORAGE_KEYS.CYCLE_SETTINGS))
+  cache.settings = stored ? { ...DEFAULT_CYCLE_SETTINGS, ...stored } : DEFAULT_CYCLE_SETTINGS
+  return cache.settings
 }
 
 export function saveUserPreferences(preferences: Partial<UserPreferences>): void {
@@ -141,18 +274,22 @@ export function saveUserPreferences(preferences: Partial<UserPreferences>): void
 
   const current = getUserPreferences()
   const updated = { ...current, ...preferences }
-  localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(updated))
+  writeItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(updated))
+  invalidateCache()
+  notifyCycleDataChanged()
 }
 
 export function getUserPreferences(): UserPreferences {
   if (typeof window === 'undefined') return DEFAULT_USER_PREFERENCES
+  if (cache.preferences) return cache.preferences
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES)
-    return stored ? { ...DEFAULT_USER_PREFERENCES, ...JSON.parse(stored) } : DEFAULT_USER_PREFERENCES
-  } catch {
-    return DEFAULT_USER_PREFERENCES
-  }
+  const stored = parseObject<UserPreferences>(
+    localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES)
+  )
+  cache.preferences = stored
+    ? { ...DEFAULT_USER_PREFERENCES, ...stored }
+    : DEFAULT_USER_PREFERENCES
+  return cache.preferences
 }
 
 // ---------- Period detection (single source of truth) ----------
@@ -164,9 +301,10 @@ export function getUserPreferences(): UserPreferences {
  * Pure: takes logs in, returns dates out. Same logic the engine uses.
  */
 export function detectPeriodStartDates(logs: CycleLog[]): string[] {
-  const sorted = [...logs].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
+  // Entries with no usable date can't be placed on a calendar at all.
+  const sorted = logs
+    .filter(l => typeof l?.date === 'string' && l.date.length > 0)
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const isFlow = (flow: string | undefined) =>
     flow !== undefined && flow !== 'none' && flow !== 'spotting'
@@ -182,11 +320,7 @@ export function detectPeriodStartDates(logs: CycleLog[]): string[] {
     }
 
     const prev = sorted[i - 1]
-    const prevDate = new Date(prev.date)
-    const curDate = new Date(log.date)
-    const dayGap = Math.round(
-      (curDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
+    const dayGap = daysBetweenKeys(prev.date, log.date)
 
     // If previous logged day is more than 1 day before this one, treat as start.
     if (dayGap > 1) {
@@ -229,9 +363,7 @@ export function buildCyclesIndex(logs: CycleLog[]): CycleHistoryEntry[] {
       index.push({ startDate: start, length: 0 })
       continue
     }
-    const length = Math.round(
-      (new Date(next).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)
-    )
+    const length = daysBetweenKeys(start, next)
     if (length >= 20 && length <= 45) {
       index.push({ startDate: start, length })
     } else {
@@ -247,20 +379,19 @@ export function recomputeCyclesIndex(logs?: CycleLog[]): CycleHistoryEntry[] {
   if (typeof window === 'undefined') return []
   const source = logs ?? getCycleLogs()
   const index = buildCyclesIndex(source)
-  localStorage.setItem(STORAGE_KEYS.CYCLES_INDEX, JSON.stringify(index))
+  writeItem(STORAGE_KEYS.CYCLES_INDEX, JSON.stringify(index))
+  cache.cyclesIndex = index
   return index
 }
 
 export function getCyclesIndex(): CycleHistoryEntry[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.CYCLES_INDEX)
-    if (stored) return JSON.parse(stored)
-    // Lazy-build on first access if migration didn't run yet.
-    return recomputeCyclesIndex()
-  } catch {
-    return []
-  }
+  if (typeof window === 'undefined') return EMPTY_INDEX
+  if (cache.cyclesIndex) return cache.cyclesIndex
+  // Lazy-build on first access if migration didn't run yet.
+  cache.cyclesIndex =
+    parseArray<CycleHistoryEntry>(localStorage.getItem(STORAGE_KEYS.CYCLES_INDEX)) ??
+    recomputeCyclesIndex()
+  return cache.cyclesIndex
 }
 
 // ---------- Aggregate helpers ----------
@@ -275,12 +406,25 @@ export function calculateAverageCycleLength(): number | null {
   return Math.round(index.reduce((sum, c) => sum + c.length, 0) / index.length)
 }
 
+/**
+ * Erase everything the app has stored on this device.
+ *
+ * Clears the registered keys, then sweeps any other `sol-cycle-*` key so a
+ * forgotten registration can't leave health data behind. Nothing outside the
+ * app's own namespace is touched.
+ */
 export function clearAllData(): void {
   if (typeof window === 'undefined') return
 
-  localStorage.removeItem(STORAGE_KEYS.CYCLE_LOGS)
-  localStorage.removeItem(STORAGE_KEYS.CYCLE_SETTINGS)
-  localStorage.removeItem(STORAGE_KEYS.USER_PREFERENCES)
-  localStorage.removeItem(STORAGE_KEYS.CYCLES_INDEX)
-  localStorage.removeItem(STORAGE_KEYS.SCHEMA_VERSION)
+  for (const key of ALL_STORAGE_KEYS) {
+    localStorage.removeItem(key)
+  }
+
+  const strays = Object.keys(localStorage).filter(k => k.startsWith('sol-cycle-'))
+  for (const key of strays) {
+    localStorage.removeItem(key)
+  }
+
+  invalidateCache()
+  notifyCycleDataChanged()
 }

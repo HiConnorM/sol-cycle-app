@@ -13,7 +13,7 @@ const MIN_AGE = 13
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 bg-background/90 backdrop-blur border-b border-border px-5 py-4">
+      <header className="sticky top-0 bg-background/90 backdrop-blur border-b border-border px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Link
             href="/"
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 py-10 space-y-10">
+      <main className="max-w-2xl mx-auto px-5 pt-10 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] space-y-10">
         <div>
           <h1 className="text-3xl font-semibold mb-2">Privacy Policy</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>
@@ -64,10 +64,9 @@ export default function PrivacyPage() {
 
         <Section title="Analytics and diagnostics">
           <p>
-            Sol Cycle uses Vercel Analytics to collect anonymous, aggregated usage data (such as page
-            views and general app performance). This data does not include any cycle, health, mood,
-            or symptom information. It cannot be linked back to any individual user. You can disable
-            JavaScript analytics in your browser settings.
+            None. Sol Cycle contains no analytics, no telemetry, no crash reporting, and no
+            third-party SDKs of any kind. The app makes no network requests once it has loaded —
+            there is no server for it to talk to, and no account to sign in to.
           </p>
         </Section>
 
@@ -112,7 +111,7 @@ export default function PrivacyPage() {
             <Li><strong>Right of access</strong> — your data is already fully accessible to you on your device. Use Export All Data to download it.</Li>
             <Li><strong>Right to erasure</strong> — use Delete All Data in Privacy &amp; Data. Deletion is immediate and complete.</Li>
             <Li><strong>Right to portability</strong> — use Export All Data to download your history as JSON.</Li>
-            <Li><strong>Right to object</strong> — there is no profiling, automated decision-making, or data processing on our servers. Vercel Analytics collects only anonymous, non-health aggregated data. You can disable this via browser settings.</Li>
+            <Li><strong>Right to object</strong> — there is no profiling, automated decision-making, or server-side processing of any kind, and no analytics to opt out of.</Li>
           </ul>
           <p className="mt-3 text-sm text-muted-foreground">
             For any GDPR-related questions, contact{' '}

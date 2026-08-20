@@ -6,6 +6,8 @@ import type {
 } from '@/lib/types'
 import { PMDD_SYMPTOMS, EMOTIONAL_SYMPTOMS } from '@/lib/types'
 import { getCycleDayFromDate } from './cycle-calculations'
+import { addDays, fromDateKey } from '@/lib/utils/date-keys'
+import { buildCycleIndex, logsInCycle } from './cycle-index'
 
 const PMDD_KEYWORDS = ['Severe', 'Extreme', 'Panic', 'Suicidal', 'Hopelessness']
 
@@ -85,13 +87,11 @@ export function computePMDDProfile(
     presence: boolean
   }> = []
 
+  // Built once up front rather than re-filtering the whole log list per cycle.
+  const index = buildCycleIndex(logs, cyclesIndex)
+
   for (const cycle of completed) {
-    const start = new Date(cycle.startDate).getTime()
-    const end = start + cycle.length * 24 * 60 * 60 * 1000
-    const cycleLogs = logs.filter(l => {
-      const t = new Date(l.date).getTime()
-      return t >= start && t < end
-    })
+    const cycleLogs = logsInCycle(index, cycle.startDate)
 
     let earliestLead: number | null = null
     let severeCount = 0
@@ -171,11 +171,9 @@ export function computePMDDProfile(
   let windowStartDate: Date | null = null
   let windowEndDate: Date | null = null
   if (cyclesIndex.length > 0) {
-    const anchor = new Date(cyclesIndex[cyclesIndex.length - 1].startDate)
-    windowStartDate = new Date(anchor)
-    windowStartDate.setDate(anchor.getDate() + windowStartDay - 1)
-    windowEndDate = new Date(anchor)
-    windowEndDate.setDate(anchor.getDate() + windowEndDay - 1)
+    const anchor = fromDateKey(cyclesIndex[cyclesIndex.length - 1].startDate)
+    windowStartDate = addDays(anchor, windowStartDay - 1)
+    windowEndDate = addDays(anchor, windowEndDay - 1)
   }
 
   const reason: string[] = []

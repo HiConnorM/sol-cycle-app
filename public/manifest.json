@@ -1,13 +1,24 @@
 {
+  "id": "/",
   "name": "Sol Cycle",
   "short_name": "Sol Cycle",
   "description": "Privacy-first cycle tracking — entirely on your device.",
   "start_url": "/",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait",
-  "background_color": "#FFFEF8",
-  "theme_color": "#FFFEF8",
-  "categories": ["health", "lifestyle"],
+  "background_color": "#F7F5F2",
+  "theme_color": "#F7F5F2",
+  "categories": [
+    "health",
+    "lifestyle"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

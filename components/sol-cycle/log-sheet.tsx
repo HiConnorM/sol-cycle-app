@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X, Droplets, Smile, Activity, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CycleLog, FlowLevel, PainLocation } from '@/lib/types'
 import { PHYSICAL_SYMPTOMS, EMOTIONAL_SYMPTOMS, PMDD_SYMPTOMS, MOODS, PAIN_LOCATIONS } from '@/lib/types'
+import { toDateKey } from '@/lib/utils/date-keys'
+import { StorageQuotaError } from '@/lib/storage/cycle-storage'
 
 interface LogSheetProps {
   isOpen: boolean
@@ -23,38 +25,26 @@ const FLOW_OPTIONS: { value: FlowLevel; label: string; color: string }[] = [
 ]
 
 export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogSheetProps) {
-  const [flow, setFlow] = useState<FlowLevel>('none')
-  const [symptoms, setSymptoms] = useState<string[]>([])
-  const [moods, setMoods] = useState<string[]>([])
-  const [painLevel, setPainLevel] = useState(0)
-  const [painLocations, setPainLocations] = useState<PainLocation[]>([])
-  const [energy, setEnergy] = useState(5)
-  const [notes, setNotes] = useState('')
-  const [bbt, setBbt] = useState<string>('') // string for input; parsed to number on save
+  // Initialised straight from the prop. app/page.tsx keys this component by
+  // date, so selecting a different day remounts it with that day's values —
+  // no effect resetting eight fields, and no window where the sheet shows the
+  // previous day's data.
+  const [flow, setFlow] = useState<FlowLevel>(existingLog?.flow ?? 'none')
+  const [symptoms, setSymptoms] = useState<string[]>(existingLog?.symptoms ?? [])
+  const [moods, setMoods] = useState<string[]>(existingLog?.moods ?? [])
+  const [painLevel, setPainLevel] = useState(existingLog?.painLevel ?? 0)
+  const [painLocations, setPainLocations] = useState<PainLocation[]>(
+    existingLog?.painLocations ?? []
+  )
+  const [energy, setEnergy] = useState(existingLog?.energy ?? 5)
+  const [notes, setNotes] = useState(existingLog?.notes ?? '')
+  // string for the input; parsed to a number on save
+  const [bbt, setBbt] = useState<string>(
+    existingLog?.bbt !== undefined ? String(existingLog.bbt) : ''
+  )
   const [activeTab, setActiveTab] = useState<'flow' | 'symptoms' | 'mood' | 'notes'>('flow')
+  const [saveError, setSaveError] = useState<string | null>(null)
   
-  // Load existing log data
-  useEffect(() => {
-    if (existingLog) {
-      setFlow(existingLog.flow)
-      setSymptoms(existingLog.symptoms)
-      setMoods(existingLog.moods)
-      setPainLevel(existingLog.painLevel)
-      setPainLocations(existingLog.painLocations ?? [])
-      setEnergy(existingLog.energy)
-      setNotes(existingLog.notes)
-      setBbt(existingLog.bbt !== undefined ? String(existingLog.bbt) : '')
-    } else {
-      setFlow('none')
-      setSymptoms([])
-      setMoods([])
-      setPainLevel(0)
-      setPainLocations([])
-      setEnergy(5)
-      setNotes('')
-      setBbt('')
-    }
-  }, [existingLog, date])
   
   const toggleSymptom = (symptom: string) => {
     setSymptoms(prev => 
@@ -81,7 +71,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
   const handleSave = () => {
     const parsedBbt = bbt.trim() !== '' ? parseFloat(bbt) : undefined
     const log: CycleLog = {
-      date: date.toISOString().split('T')[0],
+      date: toDateKey(date),
       flow,
       symptoms,
       moods,
@@ -91,8 +81,19 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
       ...(painLocations.length > 0 && { painLocations }),
       ...(parsedBbt !== undefined && !isNaN(parsedBbt) && { bbt: parsedBbt }),
     }
-    onSave(log)
-    onClose()
+    try {
+      onSave(log)
+      setSaveError(null)
+      onClose()
+    } catch (error) {
+      // A failed save must never look like a successful one — the sheet stays
+      // open with the entry intact so nothing the user typed is lost.
+      setSaveError(
+        error instanceof StorageQuotaError
+          ? 'Your device is out of storage. Free up some space, or export and delete older entries, then try again.'
+          : 'Could not save your entry. Please try again.'
+      )
+    }
   }
   
   const formatDate = (d: Date) => {
@@ -114,7 +115,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
       />
       
       {/* Sheet */}
-      <div className="relative w-full max-w-md bg-card rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+      <div className="relative w-full max-w-md bg-card rounded-t-3xl shadow-2xl max-h-[85dvh] flex flex-col animate-in slide-in-from-bottom duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
@@ -394,7 +395,7 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
         {/* Crisis resource banner — shown whenever "Suicidal thoughts" is logged */}
         {symptoms.includes('Suicidal thoughts') && (
           <div className="mx-5 mb-2 p-4 rounded-2xl bg-red-50 border border-red-200">
-            <p className="text-sm font-semibold text-red-900 mb-1">You're not alone</p>
+            <p className="text-sm font-semibold text-red-900 mb-1">You&apos;re not alone</p>
             <p className="text-xs text-red-800 mb-3 leading-relaxed">
               If you may hurt yourself or feel like you cannot stay safe, call or text 988 in the U.S. or Canada. If you are in immediate danger, call emergency services now.
             </p>
@@ -420,7 +421,15 @@ export function LogSheet({ isOpen, onClose, date, existingLog, onSave }: LogShee
         )}
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-border safe-area-pb">
+        <div className="px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-border">
+          {saveError && (
+            <p
+              role="alert"
+              className="mb-3 text-sm text-destructive-foreground bg-destructive/20 border border-destructive/40 rounded-xl px-3 py-2 leading-relaxed"
+            >
+              {saveError}
+            </p>
+          )}
           <button
             onClick={handleSave}
             className="w-full py-3 rounded-full bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   User,
@@ -19,7 +19,6 @@ import {
   Smartphone,
   Download,
   Trash2,
-  Eye,
   Calendar,
   Activity,
   AlertTriangle,
@@ -28,14 +27,22 @@ import {
   Sparkles,
   Database,
   Lock,
-  Brain,
-  BookOpen,
-} from 'lucide-react'
+} from'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Accordion,
   AccordionContent,
@@ -45,14 +52,16 @@ import {
 import { useCycle } from '@/lib/hooks/use-cycle'
 import { useCalendar } from '@/lib/hooks/use-calendar'
 import { useBiometricLock } from '@/lib/hooks/use-biometric-lock'
-import { clearAllData } from '@/lib/storage/cycle-storage'
+import { clearAllData, refreshFromStorage } from '@/lib/storage/cycle-storage'
+import { applyTheme, watchSystemTheme, type Theme } from '@/lib/theme'
+import { useHydrated } from '@/lib/hooks/use-hydration'
+import { useNotifications } from '@/lib/hooks/use-notifications'
+import { todayKey } from '@/lib/utils/date-keys'
 
 interface SideMenuProps {
   isOpen: boolean
   onClose: () => void
 }
-
-type Theme = 'light' | 'dark' | 'system'
 
 interface UserProfile {
   name: string
@@ -75,9 +84,6 @@ interface Preferences {
   hardDayAlerts: boolean
   mealSuggestions: boolean
   quietMode: boolean
-  aiPersonalization: boolean
-  journalPrivacy: boolean
-  dietaryPreferences: string[]
   foodTrackingStyle: 'light' | 'detailed'
   recommendationsEnabled: boolean
 }
@@ -85,16 +91,16 @@ interface Preferences {
 const DEFAULT_PREFERENCES: Preferences = {
   theme: 'system',
   weekStartDay: 0,
-  notificationsEnabled: true,
+  // Off until the user turns it on: enabling is what triggers the iOS
+  // permission prompt, so defaulting to true showed a switch already in the
+  // "on" position for someone who would never receive a single reminder.
+  notificationsEnabled: false,
   dailyCheckIn: true,
   phaseChangeAlerts: true,
   pmddAlerts: true,
   hardDayAlerts: true,
   mealSuggestions: true,
   quietMode: false,
-  aiPersonalization: true,
-  journalPrivacy: false,
-  dietaryPreferences: [],
   foodTrackingStyle: 'light',
   recommendationsEnabled: true,
 }
@@ -110,23 +116,43 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const { settings, cycleDay, currentPhase, logs, updateSettings } = useCycle()
   const { calendarSystem, toggleCalendarSystem } = useCalendar()
   const { isEnabled: biometricEnabled, isSupported: biometricSupported, isAuthenticating: biometricAuthenticating, enable: enableBiometric, disable: disableBiometric } = useBiometricLock()
-  const [mounted, setMounted] = useState(false)
+  const mounted = useHydrated()
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [notificationNotice, setNotificationNotice] = useState<string | null>(null)
   
   // Load from localStorage on mount
+  // Reads two keys that aren't part of the cycle store, once, after hydration.
+  // The rule wants external state read via useSyncExternalStore; that would
+  // mean standing up a store for values only this component uses, and the
+  // theme has to be applied as a side effect regardless.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setMounted(true)
     try {
       const savedProfile = localStorage.getItem(PROFILE_KEY)
       if (savedProfile) setProfile(JSON.parse(savedProfile))
-      
+
       const savedPrefs = localStorage.getItem(PREFERENCES_KEY)
-      if (savedPrefs) setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(savedPrefs) })
+      const merged = savedPrefs
+        ? { ...DEFAULT_PREFERENCES, ...JSON.parse(savedPrefs) }
+        : DEFAULT_PREFERENCES
+      setPreferences(merged)
+      applyTheme(merged.theme)
     } catch (e) {
       console.error('Failed to load preferences:', e)
     }
   }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Follow the OS appearance while the preference is 'system'. The ref is
+  // written in an effect, not during render — mutating it inline made the
+  // render impure and React is entitled to discard that write.
+  const themeRef = useRef<Theme>(preferences.theme)
+  useEffect(() => {
+    themeRef.current = preferences.theme
+  }, [preferences.theme])
+  useEffect(() => watchSystemTheme(() => themeRef.current), [])
   
   // Save profile changes
   const updateProfile = (updates: Partial<UserProfile>) => {
@@ -135,11 +161,50 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile))
   }
   
+  // Reminders are scheduled from the current prediction; the hook re-plans
+  // whenever that or these preferences change.
+  const notifications = useNotifications(mounted ? preferences : null)
+
+  /**
+   * Turning notifications on has to clear the OS permission first — a toggle
+   * that flips on while the system prompt is denied would be exactly the kind
+   * of control that looks functional and isn't.
+   */
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      updatePreferences({ notificationsEnabled: false })
+      await notifications.cancelAll()
+      setNotificationNotice(null)
+      return
+    }
+
+    if (!notifications.isSupported) {
+      setNotificationNotice('Reminders are available in the Sol Cycle app on your phone.')
+      return
+    }
+
+    const state =
+      notifications.permission === 'granted' ? 'granted' : await notifications.request()
+
+    if (state === 'granted') {
+      updatePreferences({ notificationsEnabled: true })
+      setNotificationNotice(null)
+    } else {
+      // iOS only ever shows its prompt once, so this is a Settings trip.
+      setNotificationNotice(
+        'Notifications are turned off for Sol Cycle in your device settings. Turn them on there to get reminders.'
+      )
+    }
+  }
+
   // Save preference changes
   const updatePreferences = (updates: Partial<Preferences>) => {
     const newPrefs = { ...preferences, ...updates }
     setPreferences(newPrefs)
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(newPrefs))
+    // This key is also read (and cached) by cycle-storage's getUserPreferences,
+    // so writing it directly would leave that cache serving stale settings.
+    refreshFromStorage()
     
     // Apply theme
     if (updates.theme) {
@@ -147,26 +212,8 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     }
   }
   
-  // Apply theme to document
-  const applyTheme = (theme: Theme) => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else if (theme === 'light') {
-      root.classList.remove('dark')
-    } else {
-      // System preference
-      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      if (isDark) {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
-    }
-  }
-  
   // Export data
-  const exportData = (format: 'json' | 'pdf') => {
+  const exportData = () => {
     const data = {
       profile,
       preferences,
@@ -175,29 +222,28 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
       exportDate: new Date().toISOString(),
     }
     
-    if (format === 'json') {
+    {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `sol-cycle-export-${new Date().toISOString().split('T')[0]}.json`
+      a.download = `sol-cycle-export-${todayKey()}.json`
       a.click()
       URL.revokeObjectURL(url)
     }
-    // PDF export would require a library - show placeholder message
   }
   
-  // Delete all data
+  // Delete all data. Uses an in-app dialog rather than window.confirm(), which
+  // renders as a jarring Safari-branded sheet in a standalone web view.
   const deleteAllData = () => {
-    if (confirm('Are you sure you want to delete all your data? This cannot be undone.')) {
-      clearAllData()
-      window.location.reload()
-    }
+    clearAllData()
+    window.location.reload()
   }
   
   if (!mounted) return null
-  
+
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <>
@@ -217,7 +263,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 h-full w-[85%] max-w-sm bg-background z-50 shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 h-dvh w-[85%] max-w-sm bg-background z-50 shadow-2xl flex flex-col safe-area-pt safe-area-pb"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
@@ -372,7 +418,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         <input
                           type="date"
                           defaultValue={settings.lastPeriodStart ?? ''}
-                          max={new Date().toISOString().split('T')[0]}
+                          max={todayKey()}
                           onChange={(e) => {
                             if (e.target.value) {
                               updateSettings({ lastPeriodStart: e.target.value })
@@ -441,33 +487,6 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         </p>
                       </div>
                       
-                      {/* AI Personalization */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Brain className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">AI Personalization</span>
-                        </div>
-                        <Switch
-                          checked={preferences.aiPersonalization}
-                          onCheckedChange={(checked) => updatePreferences({ aiPersonalization: checked })}
-                        />
-                      </div>
-                      
-                      {/* Journal Privacy */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Lock className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-sm text-foreground">Journal Privacy</span>
-                            <p className="text-xs text-muted-foreground">Exclude notes from AI</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={preferences.journalPrivacy}
-                          onCheckedChange={(checked) => updatePreferences({ journalPrivacy: checked })}
-                        />
-                      </div>
-
                       {/* Biometric Lock */}
                       {biometricSupported && (
                         <div className="flex items-center justify-between">
@@ -502,7 +521,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                           variant="outline"
                           size="sm"
                           className="w-full justify-start"
-                          onClick={() => exportData('json')}
+                          onClick={() => exportData()}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Export Data (JSON)
@@ -521,7 +540,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                           variant="destructive"
                           size="sm"
                           className="w-full justify-start"
-                          onClick={deleteAllData}
+                          onClick={() => setConfirmDeleteOpen(true)}
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete All Data
@@ -636,9 +655,18 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         <span className="text-sm font-medium text-foreground">Enable Notifications</span>
                         <Switch
                           checked={preferences.notificationsEnabled}
-                          onCheckedChange={(checked) => updatePreferences({ notificationsEnabled: checked })}
+                          onCheckedChange={handleNotificationsToggle}
                         />
                       </div>
+
+                      {notificationNotice && (
+                        <p
+                          role="status"
+                          className="text-xs text-muted-foreground bg-secondary/60 rounded-xl px-3 py-2 leading-relaxed"
+                        >
+                          {notificationNotice}
+                        </p>
+                      )}
                       
                       {/* Individual Toggles */}
                       {[
@@ -695,7 +723,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         variant="outline"
                         size="sm"
                         className="w-full justify-start"
-                        onClick={() => exportData('json')}
+                        onClick={() => exportData()}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Export All Data (JSON)
@@ -772,5 +800,28 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
         </>
       )}
     </AnimatePresence>
+
+    <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete all your data?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This erases every cycle log, symptom, note, and setting stored on this
+            device. Nothing is kept on a server, so this cannot be undone and there
+            is no copy to restore from. Export your data first if you want to keep it.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep my data</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={deleteAllData}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete everything
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

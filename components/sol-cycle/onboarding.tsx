@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sun, ChevronRight, Heart, Activity, Check } from 'lucide-react'
+import { Sun, ChevronRight, Heart, Activity, Check, Moon, Sparkles, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { saveCycleSettings, getCycleSettings } from '@/lib/storage/cycle-storage'
+import { saveCycleSettings } from'@/lib/storage/cycle-storage'
+import { toDateKey } from '@/lib/utils/date-keys'
 
 const ONBOARDING_KEY = 'sol-cycle-onboarding-complete'
 
@@ -26,12 +27,17 @@ type Step = 'welcome' | 'period' | 'care' | 'done'
 
 const STEPS: Step[] = ['welcome', 'period', 'care', 'done']
 
-const SLIDE = {
-  initial: { opacity: 0, x: 40 },
+/**
+ * Steps slide in from the side you're travelling towards: forward enters from
+ * the right, Back enters from the left. `direction` was already being tracked
+ * but the animation ignored it, so every step animated as if moving forward.
+ */
+const slide = (direction: number) => ({
+  initial: { opacity: 0, x: 40 * direction },
   animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -40 },
+  exit: { opacity: 0, x: -40 * direction },
   transition: { type: 'spring' as const, damping: 28, stiffness: 300 },
-}
+})
 
 export function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState<Step>('welcome')
@@ -43,7 +49,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   defaultDate.setDate(today.getDate() - 3) // safe default: 3 days ago
 
   const [lastPeriodDate, setLastPeriodDate] = useState(
-    defaultDate.toISOString().split('T')[0]
+    toDateKey(defaultDate)
   )
   const [cycleLength, setCycleLength] = useState(28)
   const [periodLength, setPeriodLength] = useState(5)
@@ -89,7 +95,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between px-6 safe-area-inset max-w-md mx-auto" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
+    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between px-6 max-w-md mx-auto" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
       {/* Progress dots */}
       {step !== 'welcome' && (
         <div className="w-full flex justify-center gap-2 pt-2">
@@ -111,7 +117,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           {step === 'welcome' && (
             <motion.div
               key="welcome"
-              {...SLIDE}
+              {...slide(direction)}
               className="text-center space-y-6"
             >
               <div className="flex justify-center">
@@ -131,13 +137,13 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
               <div className="grid gap-3 text-left">
                 {[
-                  { icon: '🌙', text: 'Track your cycle & symptoms' },
-                  { icon: '✨', text: 'Understand your patterns over time' },
-                  { icon: '🔒', text: 'Completely private — local only' },
-                ].map((item) => (
-                  <div key={item.text} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/60">
-                    <span className="text-xl">{item.icon}</span>
-                    <span className="text-sm text-foreground">{item.text}</span>
+                  { Icon: Moon, text: 'Track your cycle & symptoms' },
+                  { Icon: Sparkles, text: 'Understand your patterns over time' },
+                  { Icon: Lock, text: 'Completely private — local only' },
+                ].map(({ Icon, text }) => (
+                  <div key={text} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/60">
+                    <Icon className="w-5 h-5 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                    <span className="text-sm text-foreground">{text}</span>
                   </div>
                 ))}
               </div>
@@ -145,7 +151,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           )}
 
           {step === 'period' && (
-            <motion.div key="period" {...SLIDE} className="space-y-6">
+            <motion.div key="period" {...slide(direction)} className="space-y-6">
               <div>
                 <h2 className="text-2xl font-semibold text-foreground">Your last period</h2>
                 <p className="text-muted-foreground mt-1 text-sm">
@@ -161,7 +167,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 <input
                   type="date"
                   value={lastPeriodDate}
-                  max={today.toISOString().split('T')[0]}
+                  max={toDateKey(today)}
                   onChange={(e) => setLastPeriodDate(e.target.value)}
                   className="w-full px-4 py-3 bg-secondary rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-base"
                 />
@@ -213,7 +219,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           )}
 
           {step === 'care' && (
-            <motion.div key="care" {...SLIDE} className="space-y-6">
+            <motion.div key="care" {...slide(direction)} className="space-y-6">
               <div>
                 <h2 className="text-2xl font-semibold text-foreground">Do any of these apply?</h2>
                 <p className="text-muted-foreground mt-1 text-sm">
@@ -244,7 +250,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
           )}
 
           {step === 'done' && (
-            <motion.div key="done" {...SLIDE} className="text-center space-y-6">
+            <motion.div key="done" {...slide(direction)} className="text-center space-y-6">
               <div className="flex justify-center">
                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#BFD8C2] to-[#EAD9A0] flex items-center justify-center shadow-lg">
                   <Check className="w-12 h-12 text-white" strokeWidth={3} />
@@ -252,7 +258,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
               </div>
 
               <div className="space-y-3">
-                <h2 className="text-2xl font-semibold text-foreground">You're all set</h2>
+                <h2 className="text-2xl font-semibold text-foreground">You&apos;re all set</h2>
                 <p className="text-muted-foreground leading-relaxed">
                   Start by logging today — the more you track, the more personalised your insights become.
                 </p>

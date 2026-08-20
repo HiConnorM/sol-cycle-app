@@ -1,21 +1,33 @@
 import type {
   CycleLog,
   CycleSettings,
-  CyclePhase,
   CyclePrediction,
   ConfidenceTier,
   CycleHistoryEntry,
   SymptomPattern,
-} from '@/lib/types'
-import { getCyclePhase, getPhaseInfo } from './cycle-calculations'
+} from'@/lib/types'
+import { getPhaseInfo } from'./cycle-calculations'
 import { getMoonPhase } from './moon-phases'
 import { detectPeriodStartDates, buildCyclesIndex } from '@/lib/storage/cycle-storage'
+import { addDays, daysBetween, fromDateKey } from '@/lib/utils/date-keys'
 
 /**
  * Recency weights applied to up to the last 4 completed cycle lengths.
  * Newest first. Falls back to unweighted mean if <3 completed cycles.
  */
 const RECENCY_WEIGHTS = [0.5, 0.3, 0.15, 0.05]
+
+/**
+ * How many recent cycles feed the variability estimate.
+ *
+ * Variability used to be measured across a user's *entire* history, which made
+ * the engine unable to notice that someone had settled down: cycles that were
+ * erratic two years ago held confidence low forever, and the spread was
+ * measured against a recency-weighted mean drawn from a different, much
+ * smaller sample. Six is wide enough for a stable estimate and short enough to
+ * track a real change in someone's body.
+ */
+const VARIABILITY_WINDOW = 6
 
 export interface PatternInsight {
   title: string
@@ -112,7 +124,12 @@ export function analyzeCyclePatterns(
   } else {
     const mean = weightedMean(lengths)
     projectedCycleLength = Math.round(mean)
-    cycleLengthStdDev = stdDev(lengths, mean)
+
+    // Spread is measured over the recent window and against that window's own
+    // mean, so the number describes how variable this user is *now*.
+    const recent = lengths.slice(-VARIABILITY_WINDOW)
+    const recentMean = recent.reduce((a, b) => a + b, 0) / recent.length
+    cycleLengthStdDev = stdDev(recent, recentMean)
     confidence = Math.max(0, Math.min(100, Math.round(100 - cycleLengthStdDev * 10)))
 
     const last3 = lengths.slice(-3)
@@ -149,7 +166,7 @@ export function analyzeCyclePatterns(
   let nextPeriodLatest: Date | null = null
 
   if (latestStart) {
-    const anchor = new Date(latestStart)
+    const anchor = fromDateKey(latestStart)
     nextPeriodStart = addDays(anchor, projectedCycleLength)
     nextOvulation = addDays(anchor, Math.round(projectedCycleLength / 2))
 
@@ -201,7 +218,7 @@ export function adjustPredictionWithToday(
 ): CyclePrediction {
   if (!prediction.nextPeriodStart) return prediction
 
-  let adjusted: CyclePrediction = {
+  const adjusted: CyclePrediction = {
     ...prediction,
     reason: [...prediction.reason],
     nextPeriodRange: {
@@ -212,7 +229,7 @@ export function adjustPredictionWithToday(
 
   // Did expected bleeding fail to appear?
   const latest = prediction.nextPeriodRange.latest
-  if (latest && today.getTime() > latest.getTime()) {
+  if (latest && daysBetween(latest, today) > 0) {
     const daysLate = Math.floor(
       (today.getTime() - latest.getTime()) / (1000 * 60 * 60 * 24)
     )
@@ -393,7 +410,7 @@ export function getMoonCycleCorrelation(
   const periodStarts = detectPeriodStartDates(logs)
   if (periodStarts.length < 2) return null
 
-  const phases = periodStarts.map(d => getMoonPhase(new Date(d)).phase)
+  const phases = periodStarts.map(d => getMoonPhase(fromDateKey(d)).phase)
   const total = phases.length
 
   const newAligned = phases.filter(
@@ -458,9 +475,3 @@ export function getSeasonalColors(): Record<
 }
 
 // ---------- helpers ----------
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
-}

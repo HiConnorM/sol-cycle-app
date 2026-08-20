@@ -13,7 +13,7 @@ const MIN_AGE = 13
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 bg-background/90 backdrop-blur border-b border-border px-5 py-4">
+      <header className="sticky top-0 bg-background/90 backdrop-blur border-b border-border px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))]">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Link
             href="/"
@@ -24,7 +24,7 @@ export default function TermsPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 py-10 space-y-10">
+      <main className="max-w-2xl mx-auto px-5 pt-10 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] space-y-10">
         <div>
           <h1 className="text-3xl font-semibold mb-2">Terms of Use</h1>
           <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED}</p>

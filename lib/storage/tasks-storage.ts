@@ -1,6 +1,32 @@
 import type { Task, TaskFrequency } from '@/lib/types'
+import { daysBetween, startOfLocalDay, toDateKey, todayKey } from '@/lib/utils/date-keys'
 
 const STORAGE_KEY = 'sol-cycle-tasks'
+
+/**
+ * Change notification + parsed-value cache, mirroring cycle-storage.
+ *
+ * The cache also gives getTasks() a referentially stable result between
+ * writes, which useSyncExternalStore requires — returning a freshly parsed
+ * array each call would re-render without end.
+ */
+type Listener = () => void
+const listeners = new Set<Listener>()
+let cachedTasks: Task[] | null = null
+const EMPTY_TASKS: Task[] = []
+
+export function subscribeToTasks(listener: Listener): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+/** Drop the cache and notify — for writes made outside this module. */
+export function refreshTasksFromStorage(): void {
+  cachedTasks = null
+  for (const listener of listeners) listener()
+}
 
 /**
  * Generate a unique ID
@@ -13,14 +39,18 @@ function generateId(): string {
  * Get all tasks
  */
 export function getTasks(): Task[] {
-  if (typeof window === 'undefined') return []
-  
+  if (typeof window === 'undefined') return EMPTY_TASKS
+  if (cachedTasks) return cachedTasks
+
+  // JSON.parse can return null or an object for a value an interrupted write
+  // left behind; every caller then calls .filter on it and throws.
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    return stored ? JSON.parse(stored) : []
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    cachedTasks = Array.isArray(parsed) ? parsed : []
   } catch {
-    return []
+    cachedTasks = []
   }
+  return cachedTasks
 }
 
 /**
@@ -29,6 +59,8 @@ export function getTasks(): Task[] {
 function saveTasks(tasks: Task[]): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
+  cachedTasks = tasks
+  for (const listener of listeners) listener()
 }
 
 /**
@@ -40,9 +72,7 @@ export function addTask(task: Omit<Task, 'id'>): Task {
     id: generateId(),
   }
   
-  const tasks = getTasks()
-  tasks.push(newTask)
-  saveTasks(tasks)
+  saveTasks([...getTasks(), newTask])
   
   return newTask
 }
@@ -53,13 +83,14 @@ export function addTask(task: Omit<Task, 'id'>): Task {
 export function updateTask(id: string, updates: Partial<Task>): Task | null {
   const tasks = getTasks()
   const index = tasks.findIndex(t => t.id === id)
-  
+
   if (index === -1) return null
-  
-  tasks[index] = { ...tasks[index], ...updates }
-  saveTasks(tasks)
-  
-  return tasks[index]
+
+  const next = [...tasks]
+  next[index] = { ...next[index], ...updates }
+  saveTasks(next)
+
+  return next[index]
 }
 
 /**
@@ -80,15 +111,22 @@ export function deleteTask(id: string): boolean {
  */
 export function toggleTaskCompletion(id: string): Task | null {
   const tasks = getTasks()
-  const task = tasks.find(t => t.id === id)
-  
-  if (!task) return null
-  
-  task.completed = !task.completed
-  task.completedAt = task.completed ? new Date().toISOString() : undefined
-  
-  saveTasks(tasks)
-  return task
+  const index = tasks.findIndex(t => t.id === id)
+
+  if (index === -1) return null
+
+  const current = tasks[index]
+  const completed = !current.completed
+  const updated: Task = {
+    ...current,
+    completed,
+    completedAt: completed ? new Date().toISOString() : undefined,
+  }
+
+  const next = [...tasks]
+  next[index] = updated
+  saveTasks(next)
+  return updated
 }
 
 /**
@@ -123,22 +161,90 @@ export function getCompletedTasks(): Task[] {
  * Reset daily tasks (mark as incomplete)
  */
 export function resetDailyTasks(): void {
-  const tasks = getTasks()
-  const dailyTasks = tasks.filter(t => t.frequency === 'daily')
-  
-  dailyTasks.forEach(task => {
-    task.completed = false
-    task.completedAt = undefined
+  saveTasks(
+    getTasks().map(task =>
+      task.frequency === 'daily'
+        ? { ...task, completed: false, completedAt: undefined }
+        : task
+    )
+  )
+}
+
+/**
+ * Is a completion timestamp still inside the current period for `frequency`?
+ *
+ * A task ticked off last Tuesday should be waiting again today; without this
+ * every recurring task stayed completed forever once ticked, which made the
+ * frequency field decorative.
+ */
+export function isCompletionCurrent(
+  frequency: TaskFrequency,
+  completedAt: string,
+  now: Date = new Date()
+): boolean {
+  const completed = new Date(completedAt)
+  if (Number.isNaN(completed.getTime())) return false
+
+  switch (frequency) {
+    case 'daily':
+      return toDateKey(completed) === toDateKey(now)
+    case 'weekly':
+      return daysBetween(startOfWeek(completed), startOfWeek(now)) === 0
+    case 'biweekly':
+      // Two-week blocks anchored to the week the task was completed in.
+      return daysBetween(startOfWeek(completed), startOfWeek(now)) < 14
+    case 'monthly':
+      return (
+        completed.getFullYear() === now.getFullYear() &&
+        completed.getMonth() === now.getMonth()
+      )
+    case 'quarterly':
+      return (
+        completed.getFullYear() === now.getFullYear() &&
+        Math.floor(completed.getMonth() / 3) === Math.floor(now.getMonth() / 3)
+      )
+    case 'yearly':
+      return completed.getFullYear() === now.getFullYear()
+    default:
+      return false
+  }
+}
+
+/** Local midnight on the Sunday starting the week containing `date`. */
+function startOfWeek(date: Date): Date {
+  const start = startOfLocalDay(date)
+  start.setDate(start.getDate() - start.getDay())
+  return start
+}
+
+/**
+ * Clear completions that belong to a finished period, so recurring tasks come
+ * back around. Idempotent — safe to call on every app load. Returns true if
+ * anything changed.
+ */
+export function rolloverRecurringTasks(now: Date = new Date()): boolean {
+  let changed = false
+
+  const next = getTasks().map(task => {
+    if (!task.completed) return task
+    // A completed task with no timestamp predates completedAt being recorded;
+    // roll it over rather than leaving it stuck forever.
+    if (task.completedAt && isCompletionCurrent(task.frequency, task.completedAt, now)) {
+      return task
+    }
+    changed = true
+    return { ...task, completed: false, completedAt: undefined }
   })
-  
-  saveTasks(tasks)
+
+  if (changed) saveTasks(next)
+  return changed
 }
 
 /**
  * Get tasks due today
  */
 export function getTasksDueToday(): Task[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayKey()
   const tasks = getTasks()
   
   return tasks.filter(task => {

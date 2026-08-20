@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useCallback, useMemo, useSyncExternalStore } from 'react'
 import type {
   CycleLog,
   CycleSettings,
@@ -19,6 +19,8 @@ import {
   deleteCycleLog,
   getCyclesIndex,
   migrateSchema,
+  subscribeToCycleData,
+  refreshFromStorage,
 } from '@/lib/storage/cycle-storage'
 import {
   getCurrentCycleDay,
@@ -33,28 +35,84 @@ import {
 import { computeSymptomPatterns, getLeadIndicators } from '@/lib/calendar/symptom-patterns'
 import { computePMDDProfile } from '@/lib/calendar/pmdd-profile'
 import { computeEndoFlags } from '@/lib/calendar/endo-flags'
+import { daysBetween, daysBetweenKeys, todayKey } from '@/lib/utils/date-keys'
+
+/**
+ * Subscribe to the storage module and to cross-tab writes.
+ *
+ * Defined once at module scope so useSyncExternalStore sees a stable function
+ * and doesn't resubscribe on every render.
+ */
+function subscribeToStore(onStoreChange: () => void): () => void {
+  const unsubscribe = subscribeToCycleData(onStoreChange)
+  // Another tab wrote directly to localStorage, so the storage module's
+  // parsed-value cache is stale — drop it, which notifies subscribers.
+  const onStorage = () => refreshFromStorage()
+  window.addEventListener('storage', onStorage)
+  return () => {
+    unsubscribe()
+    window.removeEventListener('storage', onStorage)
+  }
+}
+
+const SERVER_LOGS: CycleLog[] = []
+const SERVER_INDEX: CycleHistoryEntry[] = []
+const SERVER_SETTINGS: CycleSettings = {
+  averageCycleLength: 28,
+  averagePeriodLength: 5,
+  lastPeriodStart: null,
+  trackingEnabled: true,
+}
 
 export function useCycle() {
-  const [logs, setLogs] = useState<CycleLog[]>([])
-  const [settings, setSettings] = useState<CycleSettings>({
-    averageCycleLength: 28,
-    averagePeriodLength: 5,
-    lastPeriodStart: null,
-    trackingEnabled: true,
-  })
-  const [isLoading, setIsLoading] = useState(true)
+  // localStorage is an external mutable store, so it's read through
+  // useSyncExternalStore rather than copied into state on mount. That drops
+  // the extra render every mount used to cost, and means every instance of
+  // this hook observes exactly the same snapshot. The getters return cached,
+  // referentially stable values (see cycle-storage), which this API requires.
+  const logs = useSyncExternalStore(subscribeToStore, getCycleLogs, () => SERVER_LOGS)
+  const settings = useSyncExternalStore(
+    subscribeToStore,
+    getCycleSettings,
+    () => SERVER_SETTINGS
+  )
 
-  // Load data + run one-time schema migration on mount.
+  // One-time schema migration. Runs after paint; migrateSchema is idempotent
+  // and notifies subscribers itself if it rebuilds the cycles index.
   useEffect(() => {
     migrateSchema()
-    setLogs(getCycleLogs())
-    setSettings(getCycleSettings())
-    setIsLoading(false)
   }, [])
+
+  // Data is available synchronously on the client; the flag stays for the
+  // screens that still branch on it during server render / hydration.
+  const isLoading = typeof window === 'undefined'
+
+  // The index is derived from the logs and rebuilt by the storage layer on
+  // every write, so reading it through the same store keeps it in step without
+  // a memo keyed on `logs`.
+  const cyclesIndex: CycleHistoryEntry[] = useSyncExternalStore(
+    subscribeToStore,
+    getCyclesIndex,
+    () => SERVER_INDEX
+  )
 
   // ---------- Raw cycle state ----------
 
-  const cycleDay = getCurrentCycleDay(settings.lastPeriodStart)
+  /**
+   * The single anchor everything counts from.
+   *
+   * Cycle day used to count from the date entered at onboarding while the
+   * prediction counted from the first *logged* bleeding day. When those
+   * differed, Reports showed "Day 4" beside a next-period date implying a
+   * different day one — the screen contradicting itself. Logged evidence wins
+   * once there is any; the declared date is the fallback before then.
+   */
+  const effectiveAnchor =
+    cyclesIndex.length > 0
+      ? cyclesIndex[cyclesIndex.length - 1].startDate
+      : settings.lastPeriodStart
+
+  const cycleDay = getCurrentCycleDay(effectiveAnchor)
 
   const currentPhase: CyclePhase | null = cycleDay
     ? getCyclePhase(cycleDay, settings.averageCycleLength, settings.averagePeriodLength)
@@ -63,12 +121,6 @@ export function useCycle() {
   const phaseInfo = currentPhase ? getPhaseInfo(currentPhase) : null
 
   // ---------- Rich prediction (memoized — expensive to recompute) ----------
-
-  const cyclesIndex: CycleHistoryEntry[] = useMemo(
-    () => getCyclesIndex(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [logs]
-  )
 
   const basePrediction: CyclePrediction = useMemo(
     () => analyzeCyclePatterns(logs, settings),
@@ -90,10 +142,9 @@ export function useCycle() {
 
   // Daily-adjusted prediction: shifts earlier when lead-indicator symptoms are
   // logged today, shifts later if bleeding hasn't appeared past the window.
-  const todayIso = new Date().toISOString().split('T')[0]
+  const todayIso = todayKey()
   const todayLog = useMemo(
     () => logs.find(l => l.date === todayIso) ?? null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [logs, todayIso]
   )
 
@@ -120,12 +171,7 @@ export function useCycle() {
   /** @deprecated Use prediction.nextPeriodStart and prediction.nextPeriodRange */
   const daysUntil: number | null = useMemo(() => {
     if (!prediction.nextPeriodStart) return null
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const diff = Math.round(
-      (prediction.nextPeriodStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    )
-    return Math.max(0, diff)
+    return Math.max(0, daysBetween(new Date(), prediction.nextPeriodStart))
   }, [prediction.nextPeriodStart])
 
   /** @deprecated Use pmddProfile.hasPattern or prediction.pmddWindowStart */
@@ -135,45 +181,42 @@ export function useCycle() {
 
   // ---------- Actions ----------
 
+  const updateSettings = useCallback((updates: Partial<CycleSettings>) => {
+    saveCycleSettings(updates)
+  }, [])
+
   const logDay = useCallback(
     (log: CycleLog) => {
+      // saveCycleLog notifies every subscriber, including this hook's own
+      // refresh, so there is no need to setLogs() here.
       saveCycleLog(log)
-      setLogs(getCycleLogs())
 
-      if (log.flow !== 'none') {
-        const logDate = new Date(log.date)
-        const lastStart = settings.lastPeriodStart
-          ? new Date(settings.lastPeriodStart)
-          : null
+      // Anchor a new period start. 'spotting' deliberately does not count,
+      // matching detectPeriodStartDates() — otherwise the anchor and the
+      // engine's cycle index would disagree about where a cycle began.
+      const startsFlow = log.flow !== 'none' && log.flow !== 'spotting'
 
-        if (
-          !lastStart ||
-          (logDate.getTime() - lastStart.getTime()) / (1000 * 60 * 60 * 24) > 20
-        ) {
-          const prevDayLog = logs.find(l => {
-            const prevDate = new Date(l.date)
-            const diffDays =
-              (logDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
-            return diffDays === 1
-          })
+      if (startsFlow) {
+        // Read through to storage rather than the render's closure: another
+        // instance of this hook may have written since this callback was made.
+        const lastStart = getCycleSettings().lastPeriodStart
 
-          if (!prevDayLog || prevDayLog.flow === 'none') {
+        if (!lastStart || daysBetweenKeys(lastStart, log.date) > 20) {
+          const prevDayLog = getCycleLogs().find(
+            l => daysBetweenKeys(l.date, log.date) === 1
+          )
+
+          if (!prevDayLog || prevDayLog.flow === 'none' || prevDayLog.flow === 'spotting') {
             updateSettings({ lastPeriodStart: log.date })
           }
         }
       }
     },
-    [logs, settings.lastPeriodStart]
+    [updateSettings]
   )
 
   const removeLog = useCallback((date: string) => {
     deleteCycleLog(date)
-    setLogs(getCycleLogs())
-  }, [])
-
-  const updateSettings = useCallback((updates: Partial<CycleSettings>) => {
-    saveCycleSettings(updates)
-    setSettings(getCycleSettings())
   }, [])
 
   const getLogForDate = useCallback(
@@ -182,7 +225,7 @@ export function useCycle() {
   )
 
   const startNewPeriod = useCallback(
-    (date: string = new Date().toISOString().split('T')[0]) => {
+    (date: string = todayKey()) => {
       updateSettings({ lastPeriodStart: date })
 
       const existingLog = getLogForDate(date)

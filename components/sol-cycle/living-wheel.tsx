@@ -1,15 +1,26 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { CalendarSystem, CyclePhase, CycleLog, MoonPhaseData } from '@/lib/types'
-import { gregorianToIFC, IFC_MONTHS, getGregorianMonthName } from '@/lib/calendar/international-fixed-calendar'
-import { getMoonPhase, getNextMoonPhase } from '@/lib/calendar/moon-phases'
+import {
+  gregorianToIFC,
+  ifcToGregorian,
+  getGregorianMonthName,
+  IFC_MONTHS,
+} from '@/lib/calendar/international-fixed-calendar'
+import {
+  getMoonPhase,
+  getNextMoonPhase,
+  isWaning,
+  moonPhasePath,
+} from '@/lib/calendar/moon-phases'
 import { getCyclePhase, getPhaseInfo } from '@/lib/calendar/cycle-calculations'
 import { getZodiacSign, getElementColor, getCycleAstroInsight } from '@/lib/calendar/astrology'
-import { getSeasonForMonth, getSeasonalColors } from '@/lib/calendar/cycle-predictions'
+import { getSeasonForMonth } from '@/lib/calendar/cycle-predictions'
 import { MonthGrid } from './month-grid'
+import { useHydrated } from '@/lib/hooks/use-hydration'
 
 // Default moon data for SSR
 const DEFAULT_MOON_DATA: MoonPhaseData = {
@@ -75,21 +86,26 @@ export function LivingWheel({
   const [expandedView, setExpandedView] = useState<'center' | 'month' | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
   const [expandedMonthDate, setExpandedMonthDate] = useState<Date>(date)
-  const [moonPhase, setMoonPhase] = useState<MoonPhaseData>(DEFAULT_MOON_DATA)
-  const [mounted, setMounted] = useState(false)
-  
-  // Only calculate moon phase on client to avoid hydration mismatch
-  useEffect(() => {
-    setMounted(true)
-    setMoonPhase(getMoonPhase(date))
-  }, [date])
+  // Derived on the client only: the moon phase depends on the real date, which
+  // the static shell doesn't have.
+  const mounted = useHydrated()
+  const moonPhase: MoonPhaseData = useMemo(
+    () => (mounted ? getMoonPhase(date) : DEFAULT_MOON_DATA),
+    [mounted, date]
+  )
   const ifcDate = useMemo(() => gregorianToIFC(date), [date])
   const zodiac = useMemo(() => getZodiacSign(date), [date])
   
   const monthCount = calendarSystem === 'gregorian' ? 12 : 13
-  const monthNames = calendarSystem === 'gregorian' 
-    ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Sol', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  // Memoised so the array identity is stable — a fresh literal each render
+  // would invalidate every downstream useMemo that depends on it.
+  const monthNames = useMemo(
+    () =>
+      calendarSystem === 'gregorian'
+        ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Sol', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    [calendarSystem]
+  )
   
   // Use stable values for SSR (January 1st), then real values on client
   const currentMonth = mounted
@@ -122,16 +138,38 @@ export function LivingWheel({
   const innerRadius = 95
   const centerRadius = 75
   
+  /**
+   * First day of wheel segment `monthIndex`, as a real Gregorian date.
+   *
+   * In the 13-month calendar the segment index is an *IFC* month, so it has to
+   * be converted rather than fed to `Date.setMonth`. Doing the latter treated
+   * index 6 (Sol) as Gregorian July, index 7 (July) as August and so on —
+   * every month from Sol onward opened the following Gregorian month.
+   */
+  const monthStartDate = useCallback(
+    (monthIndex: number, year: number): Date => {
+      if (calendarSystem === 'gregorian') return new Date(year, monthIndex, 1)
+      return ifcToGregorian({
+        year,
+        month: monthIndex + 1,
+        day: 1,
+        isYearDay: false,
+        isLeapDay: false,
+        monthName: '',
+      })
+    },
+    [calendarSystem]
+  )
+
   // Handle month segment click
-  const handleMonthClick = useCallback((monthIndex: number) => {
-    setSelectedMonth(monthIndex)
-    // Create date for the selected month
-    const newDate = new Date(date)
-    newDate.setMonth(monthIndex)
-    newDate.setDate(1)
-    setExpandedMonthDate(newDate)
-    setExpandedView('month')
-  }, [date])
+  const handleMonthClick = useCallback(
+    (monthIndex: number) => {
+      setSelectedMonth(monthIndex)
+      setExpandedMonthDate(monthStartDate(monthIndex, currentYear))
+      setExpandedView('month')
+    },
+    [monthStartDate, currentYear]
+  )
   
   // Handle center moon click
   const handleCenterClick = useCallback(() => {
@@ -139,12 +177,33 @@ export function LivingWheel({
   }, [])
   
   // Navigate expanded month
-  const navigateExpandedMonth = useCallback((direction: number) => {
-    const newDate = new Date(expandedMonthDate)
-    newDate.setMonth(newDate.getMonth() + direction)
-    setExpandedMonthDate(newDate)
-    setSelectedMonth(newDate.getMonth())
-  }, [expandedMonthDate])
+  /**
+   * Step one month in whichever calendar is showing.
+   *
+   * Stepping with `Date.setMonth` moved by a *Gregorian* month even in the
+   * 13-month view, so the arrows skipped and repeated IFC months. This walks
+   * the wheel index instead and wraps the year at the ends.
+   */
+  const navigateExpandedMonth = useCallback(
+    (direction: number) => {
+      const current = selectedMonth ?? 0
+      const year = expandedMonthDate.getFullYear()
+
+      let nextIndex = current + direction
+      let nextYear = year
+      if (nextIndex < 0) {
+        nextIndex = monthCount - 1
+        nextYear -= 1
+      } else if (nextIndex >= monthCount) {
+        nextIndex = 0
+        nextYear += 1
+      }
+
+      setSelectedMonth(nextIndex)
+      setExpandedMonthDate(monthStartDate(nextIndex, nextYear))
+    },
+    [selectedMonth, expandedMonthDate, monthCount, monthStartDate]
+  )
   
   // Generate wheel segments with seasonal colors
   const segments = useMemo(() => {
@@ -199,7 +258,7 @@ export function LivingWheel({
         season: getSeasonForMonth(i + 1),
       }
     })
-  }, [monthCount, calendarSystem, currentMonth, monthNames])
+  }, [monthCount, calendarSystem, currentMonth, monthNames, center])
   
   // Generate cycle day markers
   const cycleMarkers = useMemo(() => {
@@ -229,7 +288,7 @@ export function LivingWheel({
     }
     
     return markers
-  }, [cycleDay, cycleLength, periodLength])
+  }, [cycleDay, cycleLength, periodLength, center])
   
   // Upcoming moon phases for center expanded view
   const upcomingMoons = useMemo(() => {
@@ -400,31 +459,11 @@ export function LivingWheel({
                 stroke="#3a3a4e"
                 strokeWidth="0.5"
               />
-              {/* Illuminated portion - use stable values on SSR, dynamic on client */}
-              <clipPath id="moonClipLiving">
-                <circle r="22" />
-              </clipPath>
-              {mounted ? (
-                <ellipse
-                  cx={moonPhase.phase.includes('waning') 
-                    ? 22 - (moonPhase.illumination / 100) * 44 
-                    : -22 + (moonPhase.illumination / 100) * 44}
-                  cy="0"
-                  rx={Math.abs(22 - (moonPhase.illumination / 100) * 44)}
-                  ry="22"
-                  fill="#f5f5dc"
-                  clipPath="url(#moonClipLiving)"
-                />
-              ) : (
-                <ellipse
-                  cx={-11}
-                  cy="0"
-                  rx={11}
-                  ry="22"
-                  fill="#f5f5dc"
-                  clipPath="url(#moonClipLiving)"
-                />
-              )}
+              {/* Illuminated portion - stable on SSR, real phase once mounted */}
+              <path
+                d={moonPhasePath(22, moonPhase.illumination, isWaning(moonPhase.phase))}
+                fill="#f5f5dc"
+              />
               {/* Moon texture overlay */}
               <circle
                 r="22"
@@ -524,24 +563,15 @@ export function LivingWheel({
                 </button>
               </div>
               
-              <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="p-4 space-y-6 max-h-[70dvh] overflow-y-auto">
                 {/* Moon Phase */}
                 <div className="text-center">
                   <div className="inline-block p-6 rounded-full bg-[#1a1a2e] mb-4">
                     <svg width="80" height="80" viewBox="0 0 80 80">
                       <circle cx="40" cy="40" r="35" fill="#2a2a3e" stroke="#3a3a4e" strokeWidth="1" />
-                      <clipPath id="moonClipExpanded">
-                        <circle cx="40" cy="40" r="35" />
-                      </clipPath>
-                      <ellipse
-                        cx={moonPhase.phase.includes('waning') 
-                          ? 40 + 35 - (moonPhase.illumination / 100) * 70
-                          : 40 - 35 + (moonPhase.illumination / 100) * 70}
-                        cy="40"
-                        rx={Math.abs(35 - (moonPhase.illumination / 100) * 70)}
-                        ry="35"
+                      <path
+                        d={moonPhasePath(35, moonPhase.illumination, isWaning(moonPhase.phase), 40, 40)}
                         fill="#f5f5dc"
-                        clipPath="url(#moonClipExpanded)"
                       />
                     </svg>
                   </div>
@@ -570,7 +600,7 @@ export function LivingWheel({
                 {/* Zodiac */}
                 <div className="p-4 rounded-xl border border-border" style={{ backgroundColor: `${getElementColor(zodiac.element)}15` }}>
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-3xl">{zodiac.symbol}</span>
+                    <span className="font-symbol text-3xl" aria-hidden="true">{zodiac.symbol}</span>
                     <div>
                       <h4 className="font-semibold text-foreground">{zodiac.name}</h4>
                       <p className="text-xs text-muted-foreground capitalize">{zodiac.element} sign</p>
@@ -640,7 +670,9 @@ export function LivingWheel({
                 
                 <div className="text-center">
                   <h2 className="text-lg font-semibold text-foreground">
-                    {getGregorianMonthName(expandedMonthDate.getMonth() + 1)}
+                    {calendarSystem === 'gregorian'
+                      ? getGregorianMonthName(expandedMonthDate.getMonth() + 1)
+                      : IFC_MONTHS[selectedMonth ?? 0]}
                   </h2>
                   <p className="text-sm text-muted-foreground">{expandedMonthDate.getFullYear()}</p>
                 </div>
